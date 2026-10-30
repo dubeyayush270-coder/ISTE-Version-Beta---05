@@ -1,0 +1,393 @@
+
+.kscook-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(19, 42, 29, .55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kscook-sheet {
+  --green: #287b50;
+  --dark: #254b37;
+  --muted: #819486;
+
+  width: min(100%, 650px);
+  max-height: 94dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #edf3ee;
+  border-radius: 24px;
+  color: var(--dark);
+}
+
+.kscook-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px;
+  background: #f3f7f3;
+  border-bottom: 1px solid #e1eae2;
+}
+
+.kscook-header strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.kscook-green {
+  color: #287b50;
+}
+
+.kscook-icon-button {
+  width: 39px;
+  height: 39px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--dark);
+  background: #e5efe7;
+  border-radius: 12px;
+}
+
+.kscook-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.kscook-image {
+  height: 185px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(130deg, #e4f0df, #d3e9d3);
+  font-size: 80px;
+}
+
+.kscook-image img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.kscook-content {
+  padding: 22px 18px 32px;
+}
+
+.kscook-category {
+  display: inline-block;
+  background: #dff0e3;
+  color: #287b50;
+  border-radius: 30px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.kscook-content h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 15px;
+  line-height: 1.25;
+}
+
+.kscook-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px;
+  margin-bottom: 23px;
+}
+
+.kscook-meta span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #758e7b;
+}
+
+.kscook-serving-card,
+.kscook-card {
+  background: #f6f9f5;
+  border-radius: 20px;
+  padding: 17px;
+  margin-bottom: 20px;
+  box-shadow:
+    5px 5px 12px rgba(151, 173, 155, .19),
+    -5px -5px 12px #ffffff;
+}
+
+.kscook-serving-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.kscook-serving-card strong {
+  font-size: 14px;
+}
+
+.kscook-serving-card small {
+  display: block;
+  font-size: 11px;
+  color: #829587;
+  margin-top: 6px;
+}
+
+.kscook-counter {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.kscook-counter button {
+  height: 35px;
+  width: 35px;
+  padding: 0;
+  background: #e2efe5;
+  color: #287b50;
+  border-radius: 11px;
+}
+
+.kscook-counter button:disabled {
+  opacity: .4;
+}
+
+.kscook-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.kscook-section-heading h2,
+.kscook-all-steps h2 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.kscook-ready,
+.kscook-missing,
+.kscook-step-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.kscook-ready,
+.kscook-step-count {
+  color: #287b50;
+  background: #e2f0e4;
+}
+
+.kscook-missing {
+  color: #ae7836;
+  background: #fff0d9;
+}
+
+.kscook-ingredient {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e6ede5;
+  font-size: 13px;
+}
+
+.kscook-ingredient:last-child {
+  border-bottom: none;
+}
+
+.kscook-ingredient > div {
+  text-align: right;
+}
+
+.kscook-ingredient strong {
+  font-size: 13px;
+  display: block;
+}
+
+.kscook-ingredient small {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+.kscook-success {
+  color: #288453;
+}
+
+.kscook-warning {
+  color: #b47c3a;
+}
+
+.kscook-current-step {
+  padding: 19px;
+  border-radius: 17px;
+  background: #e3f0e5;
+  margin-bottom: 16px;
+}
+
+.kscook-current-step span {
+  color: #287b50;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.kscook-current-step p {
+  margin: 11px 0 0;
+  color: #254b37;
+  font-size: 16px;
+  line-height: 1.7;
+  font-weight: 600;
+}
+
+.kscook-voice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.kscook-voice-actions button {
+  padding: 12px;
+  border-radius: 12px;
+  color: #287b50;
+  background: #e3efe5;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 43px;
+}
+
+.kscook-voice-actions button.active {
+  background: #287b50;
+  color: white;
+}
+
+.kscook-voice-hint {
+  color: #819486;
+  font-size: 11px;
+  margin-top: 15px;
+  line-height: 1.6;
+}
+
+.kscook-all-steps {
+  margin-top: 27px;
+}
+
+.kscook-all-steps h2 {
+  margin-bottom: 16px;
+}
+
+.kscook-all-steps button {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  background: #f6f9f5;
+  color: #254b37;
+  border-radius: 13px;
+  margin-bottom: 10px;
+  padding: 13px;
+}
+
+.kscook-all-steps button.selected {
+  background: #e0f0e4;
+}
+
+.kscook-all-steps button span {
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #d9eadd;
+  color: #287b50;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.kscook-all-steps button p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 2px 0 0;
+}
+
+.kscook-disclaimer {
+  color: #8c9e91;
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: center;
+  margin-top: 25px;
+}
+
+.kscook-footer {
+  flex-shrink: 0;
+  background: #f6f9f5;
+  border-top: 1px solid #e0eae1;
+  padding: 13px 18px;
+  padding-bottom: calc(13px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 12px;
+}
+
+.kscook-footer button {
+  flex: 1;
+  min-height: 49px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.kscook-previous {
+  background: #e4efe5;
+  color: #287b50;
+}
+
+.kscook-next {
+  background: #287b50;
+  color: #fff;
+}
+
+.kscook-footer button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .kscook-sheet {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .kscook-header {
+    padding-top: calc(15px + env(safe-area-inset-top));
+  }
+}
