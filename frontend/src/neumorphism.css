@@ -1,0 +1,192 @@
+/* KitchenSync Soft Neumorphism Theme
+   Add after index.css in src/main.jsx.
+   To switch back, remove this stylesheet import.
+   Designed for light surfaces, consistent contrast, and accessible focus states.
+*/
+
+:root {
+  --neo-bg: #eaf1ea;
+  --neo-panel: #edf4ed;
+  --neo-ink: #28493a;
+  --neo-muted: #697f70;
+  --neo-brand: #176e50;
+  --neo-shadow: #c9d6ca;
+  --neo-glow: #ffffff;
+  --neo-raised: 9px 9px 22px rgba(149, 168, 149, .39),
+                -9px -9px 22px rgba(255, 255, 255, .98);
+  --neo-raised-small: 4px 4px 10px rgba(149, 168, 149, .33),
+                      -4px -4px 10px rgba(255, 255, 255, .98);
+  --neo-inset: inset 5px 5px 10px rgba(151, 168, 151, .28),
+               inset -5px -5px 10px rgba(255, 255, 255, .96);
+}
+
+html { background: var(--neo-bg); }
+body {
+  color: var(--neo-ink);
+  background: radial-gradient(ellipse at 100% 0%, #f6faf5 0, transparent 40%),
+              var(--neo-bg);
+  min-height: 100vh;
+}
+
+/* App shell: light, airy panels instead of flat white borders. */
+aside.fixed {
+  background: var(--neo-bg) !important;
+  border-right: 1px solid rgba(255, 255, 255, .8) !important;
+  box-shadow: 5px 0 22px rgba(139, 161, 142, .19);
+}
+header.sticky {
+  background: rgba(234, 241, 234, .92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .77) !important;
+  box-shadow: 0 6px 18px rgba(148, 171, 149, .17);
+  backdrop-filter: blur(16px);
+}
+main { color: var(--neo-ink); }
+
+/* Raised cards, gentle panel depth. */
+.k-card {
+  background: var(--neo-panel);
+  border: 1px solid rgba(255, 255, 255, .86);
+  border-radius: 23px;
+  box-shadow: var(--neo-raised);
+}
+.k-card.k-card, .k-card button, .k-card input { -webkit-tap-highlight-color: transparent; }
+
+/* Solid CTA for reliable contrast, with a raised neumorphic silhouette. */
+.k-button {
+  min-height: 40px;
+  border-radius: 13px;
+  transition: box-shadow .18s ease, transform .18s ease, background .18s ease;
+}
+.k-primary {
+  color: #fff;
+  border: 1px solid rgba(22, 92, 69, .5);
+  background: linear-gradient(145deg, #258967, #146a4b);
+  box-shadow: 4px 4px 10px rgba(128, 153, 129, .42),
+              -4px -4px 10px rgba(255, 255, 255, .88);
+}
+.k-primary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #208261, #115c43);
+  box-shadow: 6px 6px 13px rgba(128, 153, 129, .45),
+              -5px -5px 12px rgba(255, 255, 255, .94);
+}
+.k-light, .k-outline {
+  color: var(--neo-brand);
+  background: var(--neo-panel);
+  border: 1px solid rgba(255, 255, 255, .78);
+  box-shadow: var(--neo-raised-small);
+}
+.k-light:hover:not(:disabled), .k-outline:hover:not(:disabled) {
+  background: #e6f1e7;
+  box-shadow: 5px 5px 12px rgba(149, 168, 149, .36),
+              -5px -5px 12px rgba(255, 255, 255, .98);
+}
+.k-danger {
+  color: #a53b3b;
+  background: #f7e9e8;
+  box-shadow: var(--neo-raised-small);
+}
+.k-button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--neo-inset);
+}
+
+/* Inset inputs signal editable fields and remain easy to read. */
+.k-field {
+  background: #eaf1ea;
+  color: #254235;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 13px;
+  box-shadow: var(--neo-inset);
+  min-height: 43px;
+}
+.k-field::placeholder { color: #809386; opacity: 1; }
+.k-field:focus {
+  outline: 2px solid rgba(29, 119, 82, .48);
+  outline-offset: 2px;
+  border-color: rgba(35, 131, 92, .4);
+  box-shadow: var(--neo-inset);
+}
+.k-label { color: #4d6956; }
+
+/* Sidebar nav: raised on hover, pressed when active. */
+.k-nav {
+  border: 1px solid transparent;
+  border-radius: 15px;
+  color: #526f5e;
+  transition: background .16s, box-shadow .16s, color .16s;
+}
+.k-nav:hover:not(.is-active) {
+  background: var(--neo-panel);
+  color: #176e50;
+  border-color: rgba(255,255,255,.65);
+  box-shadow: var(--neo-raised-small);
+}
+.k-nav.is-active {
+  color: #126747;
+  background: #e3eee4;
+  border-color: rgba(255,255,255,.38);
+  box-shadow: var(--neo-inset);
+  font-weight: 700;
+}
+
+/* Compact raised status chips and dashboard feature icons. */
+.k-stat-icon {
+  background: #e6f1e7;
+  color: #1c7852;
+  box-shadow: 3px 3px 7px rgba(152, 171, 151, .29),
+              -3px -3px 8px rgba(255,255,255,.98);
+  border-radius: 15px;
+}
+.k-tag {
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: 2px 2px 5px rgba(153,174,155,.18),
+              -2px -2px 6px rgba(255,255,255,.85);
+}
+.k-tag-green { background: #dff0e4; color: #226d45; }
+.k-tag-orange { background: #fff0d7; color: #885713; }
+.k-tag-red { background: #fbe4e1; color: #a13e37; }
+.k-tag-muted { background: #e6ece6; color: #60796b; }
+
+/* Hero retains an intentional, legible dark-green accent. */
+.k-hero {
+  background: linear-gradient(125deg, #176d50 0%, #258360 58%, #3b946f 100%);
+  border: 1px solid rgba(255,255,255,.34);
+  box-shadow: 10px 10px 22px rgba(146,163,145,.34),
+              -9px -9px 20px rgba(255,255,255,.92),
+              inset 0 1px 0 rgba(255,255,255,.17);
+}
+
+/* Panels inside the cards use a quiet inset appearance. */
+.k-card thead { background: #e5eee6; }
+.k-card tbody tr { border-color: rgba(167,189,170,.25); }
+.k-card tbody tr:hover { background: rgba(255,255,255,.33); }
+.k-card .k-scroll::-webkit-scrollbar-thumb { background: #bccfbd; }
+
+/* Dialogs sit above the page and use the same tactile language. */
+.k-modal {
+  background: var(--neo-panel);
+  border: 1px solid rgba(255,255,255,.93);
+  box-shadow: 18px 18px 48px rgba(20,45,29,.27),
+              -6px -6px 25px rgba(255,255,255,.36);
+  border-radius: 25px;
+}
+.k-modal > .sticky {
+  background: rgba(237,244,237,.97) !important;
+  border-bottom: 1px solid rgba(255,255,255,.85);
+}
+.k-modal-backdrop { background: rgba(32, 54, 40, .42); }
+
+/* Native focus indication even for icon-only buttons. */
+button:focus-visible, a:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #389869;
+  outline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+  .k-card { box-shadow: 5px 5px 14px rgba(149,168,149,.32), -5px -5px 14px #fff; }
+  .k-hero { box-shadow: 6px 6px 15px rgba(149,168,149,.32), -5px -5px 12px #fff; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-button, .k-nav { transition: none; }
+  .k-button:hover:not(:disabled) { transform: none; }
+}
