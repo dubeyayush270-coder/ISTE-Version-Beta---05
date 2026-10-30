@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # KitchenSync v0.2 — React + FastAPI Hackathon Starter
 
 A modular Indian household kitchen management MVP, based on the original KitchenSync starter. **This is a working backend plus a new React frontend source project, not the finished AI product.**
@@ -126,3 +127,6 @@ KitchenSync-React/
 ## Hackathon repo discipline
 
 Use the assigned **team ID** as GitHub repository name and add the organizer's account specified in your problem-statement PDF. Push at least one meaningful commit every six hours per the provided guidelines. Never commit `.env`, private receipt scans, local personal data, `node_modules`, or your SQLite data file.
+=======
+# ISTE-Version-Beta---05
+>>>>>>> origin/main

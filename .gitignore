@@ -1,12 +1,22 @@
-.venv/
+
+# Python Cache
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Python Virtual Environment
+.venv/
+venv/
+
+# Local Database
 *.sqlite3
+*.sqlite
+*.db
+
+# React / Node.js
+node_modules/
+dist/
+
+# Environment Variables
 .env
-.idea/
-.vscode/
-.DS_Store
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-*.log
+.env.*
+!.env.example
