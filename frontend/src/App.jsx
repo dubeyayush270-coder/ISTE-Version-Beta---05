@@ -1,5 +1,6 @@
 import MobileBottomNav from "./components/MobileBottomNav";
 import MobileDashboard from "./components/MobileDashboard.jsx";
+import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -196,10 +197,37 @@ export default function App() {
           </>}
 
           {section === 'planner' && <>
+            
+            {/* Mobile Meal Planner */}
+            <div className="md:hidden">
+              <MobileMealPlanner
+                dates={dates}
+                plan={data.plan}
+                recipes={data.recipes}
+                audit={data.audit}
+                onPlan={openPlan}
+                onViewRecipe={(recipeId) => {
+                  const recipe = nameFor(recipeId);
+                  if (recipe) {
+                    setModal({ type: "recipe", recipe });
+                  }
+                }}
+                onWeekChange={(offset) =>
+                  setWeekStart(addDays(weekStart, offset * 7))
+                }
+                onThisWeek={() => setWeekStart(monday())}
+                onShopping={() => changeSection("shopping")}
+              />
+            </div>
+
+            {/* Existing Desktop Meal Planner */}
+            <div className="hidden md:block">
+
             <SectionHeading eyebrow="Meal planning" title="Your weekly meal calendar" description="Set breakfast, lunch and dinner. Each meal has its own number of people eating." action={<div className="flex gap-2"><Button variant="outline" onClick={() => setWeekStart(monday())}>This week</Button><Button variant="outline" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week"><ChevronLeft size={17} /></Button><Button variant="outline" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week"><ChevronRight size={17} /></Button></div>} />
             <div className="flex justify-between flex-wrap gap-3 items-center mb-4"><p className="text-sm font-semibold text-[#427356]">{prettyDate(dates[0])} – {prettyDate(dates[6])}</p><span className="text-xs text-[#819286]">Click a meal to plan or change it · Stock check below</span></div>
             <div className="overflow-x-auto k-scroll pb-2"><div className="grid k-grid-days gap-3 min-w-[1060px]">{dates.map(day => <div key={day} className="k-card p-3"><div className={`rounded-xl px-3 py-3 mb-3 ${day === todayISO() ? 'bg-[#dff0e5]' : 'bg-[#f8faf7]'}`}><div className="text-xs font-bold text-[#7d9583]">{prettyDate(day, { weekday: 'long' })}</div><div className="text-2xl font-bold text-[#316448]">{new Date(day + 'T12:00:00').getDate()}</div></div>{MEALS.map(slot => { const p = data.plan.find(m => m.meal_date === day && m.meal_type === slot); return <button key={slot} onClick={() => p?.completed_at ? setModal({ type: 'recipe', recipe: nameFor(p.recipe_id) }) : openPlan(day, slot)} className={`text-left w-full rounded-xl p-3 mb-2 border min-h-[115px] transition hover:border-[#a7d6b2] ${p ? 'bg-[#f8fbf5] border-[#e2eee4]' : 'border-dashed border-[#dfeadf]'}`}><div className="flex justify-between gap-1 text-[11px] font-semibold capitalize text-[#8b9a8d] mb-2">{slot}{p?.completed_at && <Check size={14} className="text-green-600" />}</div><div className="text-[13px] font-bold leading-tight">{p ? p.recipe_name : '+ Add meal'}</div>{p && <p className="text-[11px] mt-2 text-[#97a59a]">{p.eaters} eating</p>}</button> })}</div>)}</div></div>
             <div className="grid lg:grid-cols-3 gap-4 mt-5"><div className="k-card lg:col-span-2 p-5"><h3 className="font-bold mb-2">Weekly ingredient shortage check</h3><p className="text-xs text-[#839587] mb-3">Ingredients are allocated across meals in chronological order; stock isn't counted twice.</p>{data.audit.warnings.length ? <div className="space-y-2 max-h-[250px] overflow-auto k-scroll">{data.audit.warnings.slice(0, 12).map((w, i) => <div key={i} className="flex justify-between gap-3 text-xs bg-[#fff6e7] p-3 rounded-lg"><span>{prettyDate(w.date)} · {w.recipe}</span><strong className="text-[#926b2c]">{w.ingredient}: {displayAmount(w.missing, w.unit)}</strong></div>)}</div> : <Tag tone="green">All currently planned meals have enough stock</Tag>}</div><div className="k-card p-5 flex flex-col justify-between"><div><h3 className="font-bold mb-3">Shopping needs</h3><strong className="text-4xl text-[#276d50]">{data.audit.shopping.length}</strong><p className="text-xs text-[#89998b] mt-2">Ingredient types missing this week</p></div><Button className="mt-5" onClick={() => changeSection('shopping')}>View shopping list <ArrowRight size={16} /></Button></div></div>
+          </div>
           </>}
           {section === 'recipes' && <>
             <SectionHeading eyebrow="Find your next favourite" title="Recipe library" description="Browse familiar Indian meals, scale portions and get hands-free cooking guidance." action={<Button variant="light" onClick={() => changeSection('assistant')}><Sparkles size={16} /> Find from my stock</Button>} />
