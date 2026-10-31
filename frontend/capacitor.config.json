@@ -1,0 +1,8 @@
+{
+  "appId": "com.kitchensync.mobile",
+  "appName": "KitchenSync",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
