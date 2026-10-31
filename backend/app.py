@@ -18,6 +18,11 @@ from core import (
 )
 from db import connection, init_db
 from AI.api_router import router as ai_router
+from family_management import (
+    eaters_for_planned_meal,
+    init_family_schema,
+    router as family_router,
+)
 
 
 
@@ -27,12 +32,14 @@ app = FastAPI(title="KitchenSync API", version="0.3.0")
 
 # Register AI recipe recommendation endpoints
 app.include_router(ai_router)
+app.include_router(family_router)
 
 
 
 @app.on_event("startup")
 def startup():
     init_db()
+    init_family_schema()
 
 
 # ==========================================
@@ -191,7 +198,7 @@ def recipe_list(c):
 def plans(c, start, days=7):
     end = start + timedelta(days=days - 1)
 
-    return [
+    meals = [
         dict(row)
         for row in c.execute(
             """
@@ -211,6 +218,15 @@ def plans(c, start, days=7):
             (start.isoformat(), end.isoformat()),
         )
     ]
+
+    for meal in meals:
+        saved = int(meal["eaters"])
+        meal["saved_eaters"] = saved
+        meal["eaters"] = eaters_for_planned_meal(
+            c, meal["meal_date"], meal["meal_type"], saved,
+            meal.get("completed_at"),
+        )
+    return meals
 
 
 # ==========================================
@@ -1115,7 +1131,7 @@ def stock_check(
         recipes_data = recipe_list(c)
 
     audit = audit_meals(
-        meals,
+        [meal for meal in meals if meal["eaters"] > 0],
         {recipe["id"]: recipe for recipe in recipes_data},
         stock,
     )
@@ -1171,7 +1187,17 @@ def complete_meal(meal_date: date, meal_type: str):
             "ingredients": json.loads(row["ingredients"]),
         }
 
-        required = scale_ingredients(recipe, row["eaters"])
+        actual_eaters = eaters_for_planned_meal(
+            c, row["meal_date"], row["meal_type"], row["eaters"],
+        )
+        if actual_eaters == 0:
+            raise HTTPException(
+                409,
+                "No family members are attending this meal. "
+                "Choose attendees before completing it.",
+            )
+
+        required = scale_ingredients(recipe, actual_eaters)
         stock = {
             item["name"].casefold(): item
             for item in stock_list(c)
@@ -1283,11 +1309,12 @@ def complete_meal(meal_date: date, meal_type: str):
         c.execute(
             """
             UPDATE meal_plan
-            SET completed_at=?
+            SET completed_at=?, eaters=?
             WHERE id=?
             """,
             (
                 datetime.now().isoformat(timespec="seconds"),
+                actual_eaters,
                 row["id"],
             ),
         )
@@ -1335,7 +1362,7 @@ def dashboard():
         ]
 
     audit = audit_meals(
-        week,
+        [meal for meal in week if meal["eaters"] > 0],
         {r["id"]: r for r in recipes_data},
         planning_stock(stock),
     )

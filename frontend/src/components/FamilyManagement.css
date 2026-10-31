@@ -1,0 +1,71 @@
+.ks-family { color: #274c38; font-size: 14px; max-width: 100%; }
+.ks-family * { box-sizing: border-box; }
+.ks-family-intro { display:flex; gap:14px; align-items:center; margin-bottom:16px; }
+.ks-family-symbol { background: #e4f4ea; border-radius:18px; padding:14px; color:#287b56; box-shadow: 5px 5px 14px #dfe8dc, -4px -4px 12px #fff; }
+.ks-family-intro h3 { font-size:19px; font-weight:800; line-height:1.25; }
+.ks-family-intro p, .ks-family-attendance-heading p { font-size:12px; color:#6d8575; margin-top:5px; }
+.ks-family-summary { background:#f2f8f2; border:1px solid #e1eee2; padding:14px 10px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; text-align:center; border-radius:19px; margin-bottom:12px; }
+.ks-family-summary span { display:flex; flex-direction:column; gap:3px; color:#647c6c; font-size:11px; }
+.ks-family-summary strong { color:#246a48; font-size:22px; }
+.ks-family-info { border-left:3px solid #6aaa81; background:#f5faf5; border-radius:8px; padding:11px 12px; font-size:12px; line-height:1.6; color:#5b7765; margin:12px 0 18px; }
+.ks-family-subhead, .ks-family-attendance-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:20px 0 12px; }
+.ks-family-subhead h4, .ks-family-attendance-heading h4 { font-size:16px; font-weight:800; }
+.ks-family-subhead span { font-size:12px; color:#78927e; }
+.ks-family-member { display:flex; gap:10px; align-items:center; min-width:0; padding:12px; background:#fbfdfa; border:1px solid #e4efe2; border-radius:17px; margin-bottom:9px; box-shadow: 3px 3px 9px #ebf1e9, -3px -3px 9px #fff; }
+.ks-family-member.is-disabled { opacity:.7; }
+.ks-family-avatar { width:40px; height:40px; flex-shrink:0; display:grid; place-items:center; background:#def0e4; color:#24734d; font-weight:800; font-size:18px; border-radius:14px; }
+.ks-family-member-content { flex:1; min-width:0; }
+.ks-family-member-content strong { display:block; overflow-wrap:anywhere; font-weight:750; }
+.ks-family-member-content small { display:block; color:#738778; margin-top:3px; }
+.ks-family-member-buttons { display:flex; gap:3px; flex-shrink:0; }
+.ks-family button { transition:background .15s,transform .15s; }
+.ks-family button:disabled { cursor:not-allowed; opacity:.5; }
+.ks-family-member-buttons button { display:grid; place-items:center; width:38px; height:44px; color:#386f50; border-radius:11px; background:#eaf4eb; }
+.ks-family-member-buttons .ks-family-delete { color:#aa5252; background:#fbeeee; }
+.ks-family-member-buttons button:not(:disabled):hover { background:#d8eddd; }
+.ks-family-add { background:#f5faf5; border:1px solid #e0ebdf; border-radius:18px; padding:14px; margin-top:14px; }
+.ks-family-add>label:first-child, .ks-family-date-label { display:block; font-weight:750; font-size:12px; margin-bottom:7px; }
+.ks-family-new-row { display:flex; align-items:stretch; gap:8px; }
+.ks-family input[type=text], .ks-family-new-row input, .ks-family-edit input, .ks-family-date { min-width:0; width:100%; background:#fff; color:#274c38; padding:10px 12px; border:1px solid #cadaac; border-radius:12px; outline-offset:2px; font-size:14px; }
+.ks-family-new-row button, .ks-family-button-primary { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; background:#267650; color:#fff; font-weight:700; padding:10px 16px; border-radius:12px; white-space:nowrap; }
+.ks-family-check-inline { display:inline-flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12px; color:#587660; cursor:pointer; margin-top:12px; }
+.ks-family input[type=checkbox] { width:18px; height:18px; accent-color:#267650; flex-shrink:0; }
+.ks-family-attendance-heading { margin-top:27px; padding-top:21px; border-top:1px solid #e6eee4; }
+.ks-family-attendance-heading svg { color:#438d62; flex-shrink:0; }
+.ks-family-date { display:block; width:100%; min-height:44px; }
+.ks-family-date-caption { color:#678a72; font-size:12px; margin:8px 0 14px; }
+.ks-family-meal { padding:16px; margin:12px 0; border-radius:20px; background:#f8fcf8; border:1px solid #e1eee3; box-shadow:4px 4px 13px #e4ece3, -4px -4px 13px #fff; }
+.ks-family-meal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.ks-family-meal-head strong { font-weight:800; }
+.ks-family-count { background:#e0f0e4; color:#286e49; padding:5px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+.ks-family-mode { margin:8px 0 12px; font-size:11px; color:#758b7b; line-height:1.5; }
+.ks-family-attendees { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.ks-family-attendee { display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:8px 12px; border-radius:13px; background:#fff; border:1px solid #e2ecdf; cursor:pointer; max-width:100%; }
+.ks-family-attendee span { overflow-wrap:anywhere; }
+.ks-family-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.ks-family-actions button:not(.ks-family-button-primary) { display:inline-flex; align-items:center; gap:6px; border-radius:12px; border:1px solid #caddcd; color:#366c4d; background:#fff; padding:10px 12px; min-height:44px; font-weight:650; }
+.ks-family-warning { margin-top:10px; color:#9a6c38; font-size:11px; }
+.ks-family-error { color:#ab4040; background:#fff0ef; padding:12px; border-radius:12px; margin:12px 0; line-height:1.5; }
+.ks-family-error button { margin-left:6px; font-weight:800; text-decoration:underline; }
+.ks-family-empty, .ks-family-loading { background:#f2f7f2; padding:17px; border-radius:14px; text-align:center; color:#718677; margin:10px 0; line-height:1.5; }
+.ks-family-edit { display:grid; gap:5px; }
+.ks-family-edit .ks-family-check-inline { margin-top:4px; }
+.ks-family button:focus-visible, .ks-family input:focus-visible { outline:3px solid #65ac80; outline-offset:2px; }
+@media(max-width:390px) { .ks-family-member { gap:7px; padding:9px; }.ks-family-member-buttons button { width:34px; }.ks-family-avatar { width:35px; height:35px; }.ks-family-meal { padding:12px; }.ks-family-new-row button { padding-inline:10px; }.ks-family-summary { padding-inline:6px; } }
+.ks-family-diet-note { color:#738778; font-size:11px; margin-top:8px; line-height:1.45; }
+
+/* Phase 4B: explicit attendance-based serving mode. */
+.ks-family-serving-panel { padding:15px; border:1px solid #cae6d2; border-radius:18px; background:#eff8f1; margin:12px 0 19px; box-shadow:3px 3px 10px #e2eee4, -3px -3px 10px #fff; }
+.ks-family-serving-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.ks-family-serving-top h4 { font-size:15px; font-weight:800; line-height:1.4; }
+.ks-family-serving-top p { font-size:12px; color:#607c69; margin-top:5px; line-height:1.5; }
+.ks-family-serving-status { flex-shrink:0; background:#e2e6e0; color:#5b6d5d; font-size:11px; font-weight:800; padding:6px 10px; border-radius:999px; }
+.ks-family-serving-status.is-on { background:#c6edd2; color:#17643e; }
+.ks-family-serving-detail { font-size:12px; font-weight:650; color:#355f45; line-height:1.55; margin:13px 0 11px; }
+.ks-family-serving-toggle { width:100%; white-space:normal; text-align:center; }
+.ks-family-serving-footnote { font-size:11px; color:#68806b; line-height:1.6; margin-top:12px; }
+
+/* Four-option dietary preference picker, sized for touch screens. */
+.ks-family-diet-label { display:flex; align-items:center; gap:7px; margin:12px 0 7px; font-size:12px; font-weight:750; color:#456c51; }
+.ks-family-diet-select { display:block; width:100%; min-width:0; min-height:46px; border:1px solid #b9d6c1; border-radius:12px; background:#fff; color:#28513b; padding:10px 12px; font:inherit; font-size:14px; }
+.ks-family-diet-select:focus-visible { outline:3px solid #65ac80; outline-offset:2px; }
