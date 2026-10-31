@@ -73,13 +73,7 @@ export default function MobileDashboard({
           <p className="ks-date">{today}</p>
         </div>
 
-        <button
-          className="ks-calendar-btn"
-          onClick={() => onNavigate("planner")}
-          aria-label="Open meal planner"
-        >
-          <CalendarDays size={21} />
-        </button>
+        <div className="ks-calendar-btn" aria-hidden="true"><CalendarDays size={21} /></div>
       </div>
 
       {/* Meal completion overview */}
@@ -156,13 +150,14 @@ export default function MobileDashboard({
 
         <button
           className="ks-soft-card ks-stat-card"
-          onClick={() => onNavigate("inventory")}
+          onClick={() => onNavigate("inventory", "expiring")}
+          aria-label="Review pantry expiry alerts"
         >
           <span className="ks-stat-icon warning">
             <Clock3 size={21} />
           </span>
           <strong>{expiryCount}</strong>
-          <small>Freshness alerts</small>
+          <small>Expiry alerts</small>
         </button>
       </div>
 
@@ -220,7 +215,7 @@ export default function MobileDashboard({
         </div>
       </section>
 
-      {/* Quick actions */}
+      {/* The bottom tab already opens Shopping; keep one unique action here. */}
       <section className="ks-quick-actions">
         <button
           className="ks-ai-action"
@@ -236,21 +231,13 @@ export default function MobileDashboard({
           <ChevronRight size={22} />
         </button>
 
-        <button
-          className="ks-shopping-action"
-          onClick={() => onNavigate("shopping")}
-        >
-          <ShoppingBasket size={20} />
-          <span>View shopping list</span>
-          <ChevronRight size={18} />
-        </button>
       </section>
 
       {expiryCount > 0 && (
         <div className="ks-freshness-note">
           <AlertTriangle size={18} />
           <span>
-            Some ingredients need a freshness review.
+            Some ingredients need an expiry review.
           </span>
         </div>
       )}

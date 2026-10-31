@@ -1,4 +1,3 @@
-
 """KitchenSync: household plans, recipes, batch inventory and cooking."""
 
 import json
@@ -18,11 +17,14 @@ from core import (
 )
 from db import connection, init_db
 from AI.api_router import router as ai_router
+from recipe_nutrition_api import router as nutrition_router
 from family_management import (
     eaters_for_planned_meal,
     init_family_schema,
     router as family_router,
 )
+from weekly_planner_api import router as weekly_planner_router
+from online_recipes_api import router as online_recipes_router
 
 
 
@@ -32,7 +34,10 @@ app = FastAPI(title="KitchenSync API", version="0.3.0")
 
 # Register AI recipe recommendation endpoints
 app.include_router(ai_router)
+app.include_router(nutrition_router)
 app.include_router(family_router)
+app.include_router(weekly_planner_router)
+app.include_router(online_recipes_router)
 
 
 

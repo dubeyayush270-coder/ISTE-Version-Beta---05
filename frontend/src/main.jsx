@@ -12,6 +12,9 @@ import './neumorphism.css';
 // Mobile Responsive Styling
 import './mobile.css';
 
+// Final mobile readability and navigation overrides
+import './ui-polish.css';
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
