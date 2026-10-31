@@ -1,0 +1,101 @@
+name: KitchenSync Android APK
+
+on:
+  # Run only after a public HTTPS backend URL is configured.
+  # This allows storing the build setup on GitHub before deployment.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build installable Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # GitHub > Settings > Secrets and variables > Actions > Variables
+      # Set KITCHENSYNC_API_URL = https://your-live-fastapi-host.example
+      VITE_API_BASE_URL: ${{ vars.KITCHENSYNC_API_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK platform
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Verify HTTPS backend is configured
+        shell: bash
+        run: |
+          if [[ -z "$VITE_API_BASE_URL" ]]; then
+            echo '::error::Set repository variable KITCHENSYNC_API_URL to the HTTPS origin of your deployed FastAPI backend (without /api).'
+            exit 1
+          fi
+          if [[ "$VITE_API_BASE_URL" != https://* ]]; then
+            echo '::error::KITCHENSYNC_API_URL must start with https://; localhost and HTTP do not work for a distributed APK.'
+            exit 1
+          fi
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build React frontend with backend URL
+        working-directory: frontend
+        run: npm run build
+
+      - name: Create or synchronize Android project
+        working-directory: frontend
+        shell: bash
+        run: |
+          if [[ ! -f android/gradlew ]]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Include basic network, camera, and microphone permissions
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          p = Path('frontend/android/app/src/main/AndroidManifest.xml')
+          xml = p.read_text(encoding='utf-8')
+          if '<application' not in xml:
+              raise SystemExit('Could not find <application in AndroidManifest.xml')
+          for permission in ('android.permission.INTERNET', 'android.permission.CAMERA', 'android.permission.RECORD_AUDIO'):
+              if permission not in xml:
+                  xml = xml.replace('<application', f'<uses-permission android:name="{permission}" />\n    <application', 1)
+          p.write_text(xml, encoding='utf-8')
+          PYTHON
+
+      - name: Compile debug APK
+        working-directory: frontend/android
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitchenSync-Android-debug-APK
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
