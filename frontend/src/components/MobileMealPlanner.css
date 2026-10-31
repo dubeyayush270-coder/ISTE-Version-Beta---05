@@ -1,0 +1,383 @@
+
+.ksmp {
+  --planner-bg: #edf3ee;
+  --planner-green: #287b50;
+  --planner-text: #254b37;
+  --planner-muted: #85988a;
+
+  color: var(--planner-text);
+  padding: 5px 0 30px;
+}
+
+.ksmp button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ksmp-heading,
+.ksmp-weekbar,
+.ksmp-summary,
+.ksmp-stock-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ksmp-heading {
+  margin-bottom: 25px;
+}
+
+.ksmp-eyebrow {
+  color: var(--planner-green);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.ksmp-heading h1 {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.ksmp-muted {
+  font-size: 12px;
+  color: var(--planner-muted);
+  margin: 5px 0;
+}
+
+.ksmp-heading-icon {
+  height: 48px;
+  width: 48px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #f2f7f2;
+  color: var(--planner-green);
+  box-shadow:
+    5px 5px 12px #d1ddd3,
+    -5px -5px 12px #fff;
+}
+
+.ksmp-weekbar {
+  margin-bottom: 20px;
+}
+
+.ksmp-weekbar > button {
+  height: 39px;
+  width: 39px;
+  padding: 0;
+  border-radius: 13px;
+  background: #f5f8f5;
+  color: var(--planner-green);
+  box-shadow:
+    3px 3px 8px #d6e2d8,
+    -3px -3px 8px #fff;
+}
+
+.ksmp-weekbar > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.ksmp-weekbar strong {
+  font-size: 14px;
+}
+
+.ksmp-this-week {
+  color: var(--planner-green);
+  background: transparent;
+  padding: 2px;
+  font-size: 11px;
+}
+
+.ksmp-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 29px;
+}
+
+.ksmp-day {
+  min-width: 0;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 2px;
+  background: #f5f8f5;
+  color: var(--planner-text);
+  border-radius: 13px;
+  box-shadow:
+    3px 3px 7px rgba(156, 178, 159, .15),
+    -3px -3px 7px #fff;
+}
+
+.ksmp-day span {
+  color: var(--planner-muted);
+  font-size: 10px;
+}
+
+.ksmp-day strong {
+  font-size: 16px;
+}
+
+.ksmp-day i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.ksmp-day i.today-dot {
+  background: #51a678;
+}
+
+.ksmp-day.active {
+  background: var(--planner-green);
+  color: #fff;
+  box-shadow: 3px 5px 12px rgba(45, 119, 73, .23);
+}
+
+.ksmp-day.active span {
+  color: #d3e9dc;
+}
+
+.ksmp-day.active i.today-dot {
+  background: #fff;
+}
+
+.ksmp-summary {
+  margin-bottom: 16px;
+}
+
+.ksmp-summary h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.ksmp-counter {
+  font-size: 11px;
+  color: #317f54;
+  background: #deefe2;
+  padding: 8px 10px;
+  border-radius: 30px;
+  white-space: nowrap;
+}
+
+.ksmp-meals {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ksmp-meal {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 21px;
+  background: #f6f9f5;
+  box-shadow:
+    5px 5px 12px rgba(151, 172, 154, .2),
+    -5px -5px 12px #fff;
+}
+
+.ksmp-food-icon {
+  width: 59px;
+  height: 59px;
+  background: #e8f1e7;
+  border-radius: 17px;
+  display: grid;
+  place-items: center;
+  font-size: 29px;
+  flex-shrink: 0;
+}
+
+.ksmp-meal-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ksmp-meal-info > span {
+  font-size: 11px;
+  color: var(--planner-muted);
+}
+
+.ksmp-meal-info strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.ksmp-meal-info small {
+  color: var(--planner-muted);
+  font-size: 11px;
+}
+
+.ksmp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ksmp-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--planner-muted);
+}
+
+.ksmp-add,
+.ksmp-completed {
+  width: 39px;
+  height: 39px;
+  padding: 0;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #e4f0e6;
+  color: var(--planner-green);
+}
+
+.ksmp-completed {
+  background: #dff1e4;
+}
+
+.ksmp-calories {
+  margin-top: 22px;
+  margin-bottom: 25px;
+  background: #e2efe4;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-radius: 17px;
+  color: #327a51;
+}
+
+.ksmp-calories div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ksmp-calories strong {
+  font-size: 17px;
+}
+
+.ksmp-calories span {
+  color: #6b9278;
+  font-size: 11px;
+}
+
+.ksmp-stock {
+  padding: 19px;
+  border-radius: 21px;
+  background: #f6f9f5;
+  box-shadow:
+    5px 5px 13px #d4dfd6,
+    -5px -5px 13px #fff;
+}
+
+.ksmp-stock-title {
+  margin-bottom: 17px;
+}
+
+.ksmp-stock-title h3 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.ksmp-stock-title svg {
+  color: var(--planner-green);
+}
+
+.ksmp-stock-ok,
+.ksmp-stock-warning {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ksmp-stock-ok {
+  color: #367f56;
+}
+
+.ksmp-stock-warning {
+  color: #b27d3a;
+  margin-bottom: 13px;
+}
+
+.ksmp-shortage {
+  padding: 11px 0;
+  border-bottom: 1px solid #e8eee7;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.ksmp-shortage strong {
+  color: #aa7837;
+  text-align: right;
+}
+
+.ksmp-shop-button {
+  background: var(--planner-green);
+  color: white;
+  border-radius: 12px;
+  width: 100%;
+  padding: 13px;
+  margin-top: 17px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ksmp-disclaimer {
+  margin-top: 21px;
+  text-align: center;
+  font-size: 10px;
+  color: #8b9d8d;
+}
+
+@media (max-width: 360px) {
+  .ksmp-days {
+    gap: 3px;
+  }
+
+  .ksmp-day {
+    min-height: 62px;
+    border-radius: 10px;
+  }
+
+  .ksmp-day strong {
+    font-size: 14px;
+  }
+
+  .ksmp-meal {
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .ksmp-food-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 25px;
+  }
+}
