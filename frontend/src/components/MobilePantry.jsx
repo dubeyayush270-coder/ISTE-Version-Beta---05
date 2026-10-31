@@ -13,9 +13,11 @@ import {
   Pencil,
   Trash2,
   Save,
+  ClipboardCheck,
 } from "lucide-react";
 
 import ExpiryScanner from "./ExpiryScanner.jsx";
+import AuditStock from "./AuditStock.jsx";
 import { api } from "../lib/api";
 import "./MobilePantry.css";
 
@@ -715,15 +717,18 @@ function PurchaseBatchManager({
 export default function MobilePantry({
   inventory = [],
   dashboard = {},
+  initialFilter = "all",
   onManage,
   onEdit,
   onDelete,
   onScanConfirmed,
 }) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(initialFilter);
+  useEffect(() => setFilter(initialFilter), [initialFilter]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [auditItem, setAuditItem] = useState(null);
   const [scanForBatch, setScanForBatch] = useState(null);
   const [liveInventory, setLiveInventory] = useState(inventory);
   const [hasChanged, setHasChanged] = useState(false);
@@ -818,6 +823,22 @@ export default function MobilePantry({
     const updated = await api("/inventory");
     setLiveInventory(updated);
     setNotice("Purchase batches updated successfully.");
+  };
+
+  const handleAuditSaved = async () => {
+    setHasChanged(true);
+    const updated = await api("/inventory");
+    setLiveInventory(updated);
+    setNotice("Pantry stock reconciled successfully.");
+  };
+
+  const closeAudit = () => {
+    setAuditItem(null);
+
+    // Refresh other application sections after a stock correction.
+    if (hasChanged) {
+      window.location.reload();
+    }
   };
 
   const closeBatchManager = () => {
@@ -942,6 +963,15 @@ export default function MobilePantry({
         ))}
       </div>
 
+      <div className="kspantry-primary-actions">
+        <button type="button" className="kspantry-manage" onClick={() => setScannerOpen(true)}>
+          <Camera size={19} /> Scan label
+        </button>
+        {onManage && <button type="button" className="kspantry-manage" onClick={onManage}>
+          <Plus size={19} /> Add ingredient
+        </button>}
+      </div>
+
       <div className="kspantry-list-heading">
         <div>
           <h2>Kitchen Inventory</h2>
@@ -1001,8 +1031,8 @@ export default function MobilePantry({
                     >
                         <p className="font-bold">
                         {requiresReview
-                            ? "Review purchase batch"
-                            : "Date approaching"}
+                            ? "Expiry review required"
+                            : "Expiry alert · date approaching"}
                         </p>
 
                         <p className="mt-1 opacity-80">
@@ -1021,41 +1051,28 @@ export default function MobilePantry({
                     </div>
                     );
                 })}
-                        <div className="mt-2 flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={() => {
-                            setSelected(item);
-                            setScanForBatch(null);
-                            }}
-                            className="rounded-xl bg-[#e4f2e8] px-3 py-2 text-xs font-bold text-[#26714a]"
-                        >
-                            Manage Batches
-                        </button>
-
-                        {onEdit && (
-                            <button
-                            type="button"
-                            onClick={() => onEdit(item)}
-                            className="flex items-center gap-1 rounded-xl bg-[#edf2f0] px-3 py-2 text-xs font-bold text-[#466b55]"
-                            aria-label={`Edit ${item.name}`}
-                            >
-                            <Pencil size={14} />
-                            Edit
-                            </button>
-                        )}
-
-                {onDelete && (
-                    <button
-                    type="button"
-                    onClick={() => onDelete(item)}
-                    className="flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
-                    aria-label={`Delete ${item.name}`}
-                    >
-                    <Trash2 size={14} />
-                    Delete
-                    </button>
-                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2 kspantry-action-row">
+                  <button type="button" onClick={() => { setSelected(item); setScanForBatch(null); }}
+                    className="rounded-xl bg-[#e4f2e8] px-3 py-2 text-sm font-bold text-[#26714a]">
+                    Manage batches <ArrowRight size={15} className="inline ml-1"/>
+                  </button>
+                  <details className="kspantry-more-actions">
+                    <summary aria-label={`More actions for ${item.name}`}>More actions</summary>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <button type="button" onClick={() => setAuditItem(item)}
+                        className="flex items-center gap-1 rounded-xl bg-[#dff0e4] px-3 py-2 text-sm font-bold text-[#216d48]">
+                        <ClipboardCheck size={15}/> Audit stock
+                      </button>
+                      {onEdit && <button type="button" onClick={() => onEdit(item)}
+                        className="flex items-center gap-1 rounded-xl bg-[#edf2f0] px-3 py-2 text-sm font-bold text-[#466b55]">
+                        <Pencil size={15}/> Edit details
+                      </button>}
+                      {onDelete && <button type="button" onClick={() => onDelete(item)}
+                        className="flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                        <Trash2 size={15}/> Delete
+                      </button>}
+                    </div>
+                  </details>
                 </div>
 
             </div>
@@ -1077,25 +1094,7 @@ export default function MobilePantry({
         </div>
       )}
 
-      <button
-        type="button"
-        className="kspantry-manage"
-        onClick={() => setScannerOpen(true)}
-      >
-        <Camera size={19} />
-        Scan Barcode / Expiry Label
-      </button>
 
-      {onManage && (
-        <button
-          type="button"
-          className="kspantry-manage"
-          onClick={onManage}
-        >
-          Manage Pantry Items
-          <ArrowRight size={18} />
-        </button>
-      )}
 
       <p className="kspantry-note">
             Low-stock alerts use approximate default thresholds
@@ -1108,6 +1107,15 @@ export default function MobilePantry({
         <ExpiryScanner
           onClose={() => setScannerOpen(false)}
           onApply={handleScan}
+        />
+      )}
+
+      {auditItem && (
+        <AuditStock
+          key={auditItem.id}
+          ingredient={auditItem}
+          onClose={closeAudit}
+          onSaved={handleAuditSaved}
         />
       )}
 

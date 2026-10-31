@@ -1,4 +1,4 @@
-
+import AuditStock from "./AuditStock.jsx";
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { createWorker } from "tesseract.js";

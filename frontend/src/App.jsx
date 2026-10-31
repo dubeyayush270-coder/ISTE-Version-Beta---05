@@ -5,6 +5,7 @@ import { savedPlanEaters } from "./lib/planServingLogic.js";
 import MobileBottomNav from "./components/MobileBottomNav";
 import MobileDashboard from "./components/MobileDashboard.jsx";
 import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
+import WeeklyPlanGenerator from "./components/WeeklyPlanGenerator.jsx";
 import MobileRecipeLibrary from "./components/MobileRecipeLibrary.jsx";
 import MobileRecipeDetail from "./components/MobileRecipeDetail.jsx";
 import MobilePantry from "./components/MobilePantry.jsx";
@@ -63,7 +64,7 @@ function SectionHeading({ eyebrow, title, description, action }) {
 function EmptyState({ icon: Icon = ChefHat, children }) { return <div className="text-center py-12 text-[#8b998d]"><Icon className="mx-auto mb-3" size={30} /><p className="text-sm">{children}</p></div> }
 function Modal({ title, subtitle, children, onClose }) {
   useEffect(() => { const onKey = e => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey) }, [onClose]);
-  return <div className="k-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><div className="k-modal k-scroll"><div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-[#e8eee7] px-6 py-5 flex justify-between items-start gap-4"><div><h2 className="text-xl font-bold">{title}</h2>{subtitle && <p className="text-sm text-[#88958a] mt-1">{subtitle}</p>}</div><button aria-label="Close dialog" onClick={onClose} className="rounded-xl p-2 hover:bg-[#eff4ed]"><X size={19} /></button></div><div className="px-6 pb-6 pt-5">{children}</div></div></div>;
+  return <div className="k-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><div className="k-modal k-scroll" role="dialog" aria-modal="true" aria-label={title}><div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-[#e8eee7] px-4 sm:px-6 py-4 flex items-start gap-3"><button type="button" aria-label={`Back from ${title}`} onClick={onClose} className="k-modal-back rounded-xl px-3 py-2 hover:bg-[#eff4ed] flex items-center gap-1.5 text-sm font-semibold text-[#236b4b]"><ChevronLeft size={20} /> Back</button><div className="min-w-0 flex-1"><h2 className="text-xl font-bold">{title}</h2>{subtitle && <p className="text-sm text-[#667a6d] mt-1">{subtitle}</p>}</div></div><div className="px-4 sm:px-6 pb-8 pt-5">{children}</div></div></div>;
 }
 function RecipeDetail({ recipe, defaultEaters, onClose, onNotify }) {
   const [eaters, setEaters] = useState(defaultEaters || 2);
@@ -114,6 +115,9 @@ function RecipeDetail({ recipe, defaultEaters, onClose, onNotify }) {
 export default function App() {
   const [section, setSection] = useState('dashboard');
   const [mobileNav, setMobileNav] = useState(false);
+  const [pantryFilter, setPantryFilter] = useState('all');
+  const sectionHistory = useRef([]);
+  const actionInFlight = useRef(false);
   const [weekStart, setWeekStart] = useState(() => monday());
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -139,17 +143,31 @@ export default function App() {
         api('/dashboard'), api(`/stock-check?start=${start}&days=7`)
       ]);
       setData({ settings, inventory, recipes, plan, dashboard, audit });
-    } catch (err) { setError(err.message || 'Cannot connect to backend.'); }
+      return true;
+    } catch (err) { setError(err.message || 'Cannot connect to backend.'); return false; }
     finally { setBusy(false); }
   }, [weekStart]);
   useEffect(() => { refresh() }, [refresh]);
   const run = async (operation, success) => {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     setBusy(true);
     try { await operation(); setModal(null); notify(success); await refresh(); }
     catch (err) { notify(err.message || 'Something went wrong', true); }
-    finally { setBusy(false) }
+    finally { actionInFlight.current = false; setBusy(false); }
   };
-  const changeSection = id => { setSection(id); setMobileNav(false) };
+  const changeSection = (id, inventoryFilter = 'all') => {
+    if (id !== section) { sectionHistory.current.push(section); setSection(id); }
+    if (id === 'inventory') setPantryFilter(inventoryFilter);
+    setMobileNav(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+  const goBack = () => {
+    const previous = sectionHistory.current.pop() || 'dashboard';
+    setSection(previous);
+    setMobileNav(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
   const openPlan = (day, mealType) => {
     const existing = data.plan.find(p => p.meal_date === day && p.meal_type === mealType);
     setMealDraft({ recipe_id: existing?.recipe_id || data.recipes[0]?.id, eaters: savedPlanEaters(existing, data.settings.household_size) });
@@ -224,8 +242,8 @@ const saveStock = event => {
     <div className="mt-auto px-3 pb-5"><div className="bg-[#e5f3e8] rounded-2xl p-4"><div className="flex gap-2 items-center text-[#327752] font-bold text-sm"><Leaf size={18} /> Made for Indian homes</div><p className="text-[12px] text-[#769582] mt-2 leading-relaxed">Less food waste. Less kitchen stress. More delicious meals.</p></div></div></div>;
 
   return <div className="min-h-screen lg:flex"><aside className="hidden lg:block fixed inset-y-0 left-0 w-[245px] bg-white border-r border-[#e8eee8] z-20">{sidebar}</aside>
-    {mobileNav && <div className="lg:hidden fixed inset-0 z-40 flex"><div className="w-[255px] bg-white h-full z-10">{sidebar}</div><button aria-label="Close menu" className="bg-black/40 flex-1" onClick={() => setMobileNav(false)} /></div>}
-    <div className="lg:ml-[245px] w-full min-w-0"><header className="bg-white/90 border-b border-[#e9eee8] h-[76px] flex items-center justify-between gap-3 px-5 md:px-8 sticky top-0 z-10 backdrop-blur-sm"><div className="flex gap-3 items-center"><button className="lg:hidden" onClick={() => setMobileNav(true)} aria-label="Open menu"><Menu size={23} /></button><span className="text-[#9cab9d] text-sm hidden sm:inline">Workspace /</span><strong className="text-sm text-[#354d3d]">{section === 'roadmap' ? 'Feature roadmap' : SECTIONS.find(s => s[0] === section)?.[1]}</strong></div><div className="flex gap-3 items-center"><span className="hidden sm:inline text-[#87978b] text-xs">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span><button onClick={() => refresh()} aria-label="Refresh data" title="Refresh data" className="p-2.5 rounded-xl hover:bg-[#edf4ed] text-[#5f816b]"><RefreshCcw size={17} className={busy ? 'animate-spin' : ''} /></button><button className="flex gap-2 items-center rounded-xl border border-[#e3ece2] px-3 py-2 hover:bg-[#f6f9f5]" onClick={() => { if (data) { setHouseholdDraft({ ...data.settings }); setModal({ type: 'settings' }) } }}><UsersRound size={17} className="text-[#3f8c66]" /><span className="hidden md:inline text-xs font-semibold">{data?.settings.household_name || 'Household'}</span><Settings2 size={15} className="text-[#98a59a]" /></button></div></header>
+    {mobileNav && <div className="lg:hidden fixed inset-0 z-40 flex" role="dialog" aria-modal="true" aria-label="More KitchenSync pages"><div className="w-[275px] max-w-[85vw] bg-[#f3f8f3] h-full z-10 p-5 shadow-2xl"><div className="flex items-center justify-between mb-5"><strong className="text-xl text-[#236747]">More pages</strong><button type="button" className="p-2 rounded-xl" onClick={() => setMobileNav(false)} aria-label="Close more pages"><X size={22}/></button></div><p className="text-sm text-[#647b69] mb-4">Your five main pages are in the bottom navigation.</p><nav className="space-y-2" aria-label="Additional pages"><button className="k-nav" onClick={() => changeSection('assistant')}><Bot size={19}/> Kitchen assistant <ChevronRight size={17} className="ml-auto"/></button><button className="k-nav" onClick={() => changeSection('roadmap')}><ListChecks size={19}/> Feature roadmap <ChevronRight size={17} className="ml-auto"/></button><button className="k-nav" onClick={() => { setMobileNav(false); setModal({ type: 'family' }); }}><UsersRound size={19}/> Family management <ChevronRight size={17} className="ml-auto"/></button></nav></div><button aria-label="Close more pages" className="bg-black/40 flex-1" onClick={() => setMobileNav(false)} /></div>}
+    <div className="lg:ml-[245px] w-full min-w-0"><header className="bg-white/90 border-b border-[#e9eee8] h-[76px] flex items-center justify-between gap-3 px-5 md:px-8 sticky top-0 z-10 backdrop-blur-sm"><div className="flex gap-3 items-center">{section !== 'dashboard' && <button type="button" className="lg:hidden k-mobile-top-action" onClick={goBack} aria-label="Go back"><ChevronLeft size={22}/></button>}<button type="button" className="lg:hidden k-mobile-top-action" onClick={() => setMobileNav(true)} aria-label="More pages"><Menu size={22} /></button><span className="text-[#9cab9d] text-sm hidden sm:inline">Workspace /</span><strong className="text-sm text-[#354d3d]">{section === 'roadmap' ? 'Feature roadmap' : SECTIONS.find(s => s[0] === section)?.[1]}</strong></div><div className="flex gap-3 items-center"><span className="hidden sm:inline text-[#87978b] text-xs">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span><button onClick={() => refresh()} aria-label="Refresh data" title="Refresh data" className="p-2.5 rounded-xl hover:bg-[#edf4ed] text-[#5f816b]"><RefreshCcw size={17} className={busy ? 'animate-spin' : ''} /></button><button className="flex gap-2 items-center rounded-xl border border-[#e3ece2] px-3 py-2 hover:bg-[#f6f9f5]" onClick={() => { if (data) { setHouseholdDraft({ ...data.settings }); setModal({ type: 'settings' }) } }}><UsersRound size={17} className="text-[#3f8c66]" /><span className="hidden md:inline text-xs font-semibold">{data?.settings.household_name || 'Household'}</span><Settings2 size={15} className="text-[#98a59a]" /></button></div></header>
       <main className="max-w-[1500px] mx-auto px-5 md:px-8 py-7 md:py-9">
         {error && <div className="k-card p-6 mb-6 flex flex-wrap items-center gap-3"><AlertTriangle className="text-red-600" /><div className="flex-1"><strong>Backend connection problem</strong><p className="text-sm text-red-600">{error}</p><p className="text-xs text-[#69796c]">Start FastAPI on port 8000, then refresh this page.</p></div><Button onClick={refresh}><RefreshCcw size={16} /> Retry</Button></div>}
         {!data && !error ? <div className="k-card p-12 text-center"><RefreshCcw className="mx-auto animate-spin text-[#428661]" /><p className="mt-3 text-sm text-[#779381]">Connecting to your kitchen...</p></div> : data && <>
@@ -246,7 +264,7 @@ const saveStock = event => {
               {[[UsersRound, 'Family members', data.settings.household_size], [CalendarDays, 'Meals planned', data.dashboard.planned_meals], [Package, 'Pantry ingredients', data.dashboard.stock_items], [ShoppingBasket, 'Items to buy', data.dashboard.shopping_count]].map(([Icon, label, value]) => <div className="k-card p-4 md:p-5" key={label}><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs text-[#819084]">{label}</span><span className="k-stat-icon shrink-0"><Icon size={19} /></span></div><div className="text-3xl font-extrabold tracking-tight text-[#244934]">{value}</div></div>)}
             </div>
             <div className="grid lg:grid-cols-5 gap-5">
-              <section className="k-card lg:col-span-3 p-5 md:p-6"><div className="flex justify-between gap-4 items-center mb-5"><div><h3 className="text-lg font-bold">Today's menu</h3><p className="text-xs text-[#819185] mt-1">{prettyDate(todayISO(), { weekday: 'long', day: 'numeric', month: 'long' })}</p></div><button className="text-xs text-[#297a58] font-bold" onClick={() => changeSection('planner')}>View planner →</button></div>
+              <section className="k-card lg:col-span-3 p-5 md:p-6"><div className="flex justify-between gap-4 items-center mb-5"><div><h3 className="text-lg font-bold">Today's menu</h3><p className="text-xs text-[#819185] mt-1">{prettyDate(todayISO(), { weekday: 'long', day: 'numeric', month: 'long' })}</p></div><button className="text-sm text-[#297a58] font-bold flex gap-1 items-center" onClick={() => changeSection('planner')}>View planner <ArrowRight size={16}/></button></div>
                 {MEALS.map(slot => { const meal = data.dashboard.today_meals.find(m => m.meal_type === slot); return <div className="flex items-center gap-3 py-3 border-t border-[#eff2ec]" key={slot}><div className="bg-[#eff5ec] w-12 h-12 flex items-center justify-center rounded-xl text-xl">{slot === 'breakfast' ? '🥣' : slot === 'lunch' ? '🍛' : '🍲'}</div><div className="min-w-0 flex-1"><div className="text-[11px] text-[#91a094] capitalize">{slot}</div><div className="font-bold text-sm truncate">{meal?.recipe_name || 'Not planned yet'}</div><div className="text-xs text-[#9aab9d]">{meal ? `${meal.eaters} people · ${meal.minutes} min` : 'Tap to add a meal'}</div></div>{meal ? <Tag tone={meal.completed_at ? 'green' : 'orange'}>{meal.completed_at ? 'Cooked' : 'Planned'}</Tag> : <Button variant="outline" onClick={() => openPlan(todayISO(), slot)}><Plus size={15} /> Add</Button>}</div> })}
               </section>
               <section className="k-card lg:col-span-2 p-5 md:p-6"><div className="flex justify-between items-center mb-5 gap-2"><div><h3 className="text-lg font-bold">Kitchen alerts</h3><p className="text-xs text-[#859587] mt-1">Shortages and expiry reminders</p></div><AlertTriangle size={20} className="text-[#d89c42]" /></div>
@@ -259,6 +277,9 @@ const saveStock = event => {
           </>}
 
           {section === 'planner' && <>
+
+            <WeeklyPlanGenerator start={dateISO(weekStart)} householdSize={data.settings.household_size}
+              onSaved={refresh} onNotify={notify} />
 
             {/* Mobile Meal Planner */}
             <div className="md:hidden">
@@ -323,6 +344,7 @@ const saveStock = event => {
             <div className="md:hidden">
 
               <MobilePantry
+                initialFilter={pantryFilter}
                 inventory={data.inventory}
                 dashboard={data.dashboard}
                 onManage={() => openStock(null)}
@@ -366,7 +388,7 @@ const saveStock = event => {
             {/* Existing Inventory Controls */}
             <div id="inventory-controls" className="hidden md:block scroll-mt-6">
 
-            <SectionHeading eyebrow="Pantry & freshness" title="My kitchen inventory" description="Keep ingredients accurate. Quantities are stored in grams, millilitres or pieces; expiry warnings appear automatically." action={<Button onClick={() => openStock(null)}><Plus size={17} /> Add ingredient</Button>} />
+            <SectionHeading eyebrow="Pantry & expiry" title="My kitchen inventory" description="Keep ingredients accurate. Quantities are stored in grams, millilitres or pieces; expiry warnings appear automatically." action={<Button onClick={() => openStock(null)}><Plus size={17} /> Add ingredient</Button>} />
             <div className="k-card p-4 mb-5 flex flex-wrap gap-3 items-center justify-between"><div className="relative w-full sm:max-w-sm"><Search size={18} className="absolute top-3 left-3.5 text-[#9ba99c]" /><input value={stockSearch} onChange={e => setStockSearch(e.target.value)} className="k-field pl-11" placeholder="Find an ingredient..." /></div><div className="text-xs text-[#8fa092]">{data.inventory.length} ingredients · Includes manually entered stock</div></div>
             <div className="k-card overflow-x-auto k-scroll"><table className="w-full text-sm text-left min-w-[620px]"><thead className="bg-[#f7faf5] text-[#819386] text-xs"><tr><th className="p-4 font-semibold">Ingredient</th><th className="p-4 font-semibold">Quantity</th><th className="p-4 font-semibold">Expiry</th><th className="p-4 font-semibold">Status</th><th className="p-4 font-semibold text-right">Actions</th></tr></thead><tbody>{stockFiltered.map(item => <tr key={item.id} className="border-t border-[#edf1eb] hover:bg-[#fcfefa]"><td className="p-4"><strong>{item.name}</strong>{Boolean(item.is_leftover) && <div className="text-xs text-[#aa8c49] mt-1">Cooked leftover</div>}</td><td className="p-4 font-semibold">{displayAmount(item.quantity, item.unit)}</td><td className="p-4 text-[#819486]">{item.expiry_date ? prettyDate(item.expiry_date) : 'Not set'}</td><td className="p-4"><Tag tone={!item.usable ? 'red' : item.quantity <= 0 ? 'orange' : 'green'}>{!item.usable ? 'Review / unsafe' : item.quantity <= 0 ? 'Out of stock' : 'Available'}</Tag></td><td className="p-4"><div className="flex justify-end gap-2"><button title="Edit" className="p-2 text-[#438866] bg-[#eef6ef] rounded-lg" onClick={() => openStock(item)}><Pencil size={16} /></button><button title="Delete" className="p-2 text-red-600 bg-red-50 rounded-lg" onClick={() => { if (window.confirm(`Delete ${item.name} from pantry?`)) run(() => api(`/inventory/${item.id}`, { method: 'DELETE' }), `${item.name} removed`) }}><Trash2 size={16} /></button></div></td></tr>)}</tbody></table>{!stockFiltered.length && <EmptyState icon={Package}>No matching ingredients.</EmptyState>}</div>
             <p className="text-xs text-[#899b8c] mt-4">Note: Leftover storage checks are conservative demo rules, not a guarantee of food safety. The app never assumes unrefrigerated overnight rice is safe.</p>
@@ -404,7 +426,7 @@ const saveStock = event => {
       </main>
       <footer className="text-center text-[11px] text-[#9aab9c] px-6 pb-6">KitchenSync MVP · Built for learning and hackathon demonstration · Sample recipe nutrition is approximate</footer>
     </div>
-    {notice && <div className={`fixed z-[100] bottom-5 right-5 max-w-md shadow-xl px-5 py-4 rounded-xl text-sm font-semibold text-white ${notice.bad ? 'bg-[#bc5353]' : 'bg-[#206b51]'}`} role="status">{notice.message}</div>}
+    {notice && <div className={`fixed z-[145] bottom-[calc(90px+env(safe-area-inset-bottom))] md:bottom-5 right-3 md:right-5 max-w-md shadow-xl px-5 py-4 rounded-xl text-sm font-semibold text-white ${notice.bad ? 'bg-[#bc5353]' : 'bg-[#206b51]'}`} role="status">{notice.message}</div>}
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav
@@ -431,6 +453,6 @@ const saveStock = event => {
     {modal?.type === 'family' && <Modal title="Family management" subtitle="Members, preferences and daily meal attendance" onClose={() => setModal(null)}><FamilyManagement onNotify={notify} onDataChanged={refresh} initialDate={modal.day} /></Modal>}
     {modal?.type === 'stock' && <Modal title={modal.item ? 'Edit ingredient' : 'Add to pantry'} subtitle="Changes are saved to your local KitchenSync database" onClose={() => setModal(null)}><form onSubmit={saveStock} className="space-y-4"><div><Label>Ingredient name</Label><input className="k-field" placeholder="e.g. Potato" maxLength={80} required value={stockDraft.name} onChange={e => setStockDraft({ ...stockDraft, name: e.target.value })} /></div><div className="grid grid-cols-2 gap-3"><div><Label>Quantity</Label><input className="k-field" type="number" step="0.01" min="0" max="1000000" required value={stockDraft.quantity} onChange={e => setStockDraft({ ...stockDraft, quantity: e.target.value })} /></div><div><Label>Unit</Label><select className="k-field" value={stockDraft.unit} onChange={e => setStockDraft({ ...stockDraft, unit: e.target.value })}><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option><option value="pcs">pieces (pcs)</option></select></div></div><div><Label>Expiry / best-before date (optional)</Label><input className="k-field" type="date" value={stockDraft.expiry_date} onChange={e => setStockDraft({ ...stockDraft, expiry_date: e.target.value })} /></div><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={stockDraft.is_leftover} onChange={e => setStockDraft({ ...stockDraft, is_leftover: e.target.checked })} /> Cooked leftover food</label>{stockDraft.is_leftover && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><Label>Prepared at</Label><input required type="datetime-local" className="k-field" value={stockDraft.prepared_at} onChange={e => setStockDraft({ ...stockDraft, prepared_at: e.target.value })} /></div><div><Label>Storage</Label><select className="k-field" required value={stockDraft.storage} onChange={e => setStockDraft({ ...stockDraft, storage: e.target.value })}><option value="">Select storage...</option><option value="refrigerated">Refrigerated</option><option value="room_temperature">Room temperature</option><option value="frozen">Frozen</option></select></div></div>}<p className="text-xs text-[#87998b]">Convert 1 kg to 1000 g or 1 L to 1000 ml. Leftover safety needs personal verification.</p><div className="flex justify-end gap-2"><Button variant="outline" type="button" onClick={() => setModal(null)}>Cancel</Button><Button disabled={busy} type="submit">Save ingredient</Button></div></form></Modal>}
     {modal?.type === 'plan' && <Modal title={`${modal.existing ? 'Edit' : 'Plan'} ${modal.mealType}`} subtitle={prettyDate(modal.day, { weekday: 'long', day: 'numeric', month: 'long' })} onClose={() => setModal(null)}><form className="space-y-4" onSubmit={e => { e.preventDefault(); run(() => api(`/plan/${modal.day}/${modal.mealType}`, { method: 'PUT', body: JSON.stringify({ recipe_id: Number(mealDraft.recipe_id), eaters: Number(mealDraft.eaters) }) }), 'Meal plan saved') }}><div><Label>Choose recipe</Label><select className="k-field" value={mealDraft.recipe_id} onChange={e => setMealDraft({ ...mealDraft, recipe_id: Number(e.target.value) })}>{data.recipes.map(r => <option value={r.id} key={r.id}>{r.name}</option>)}</select></div><PlanServingEditor day={modal.day} mealType={modal.mealType} savedEaters={mealDraft.eaters} onSavedEatersChange={value => setMealDraft(current => ({ ...current, eaters: value }))} recipe={nameFor(Number(mealDraft.recipe_id))} onManageAttendance={() => setModal({ type: "family", day: modal.day })} />
-      <div className="flex flex-wrap justify-between gap-2"><div className="flex flex-wrap gap-2">{modal.existing && !modal.existing.completed_at && <Button type="button" variant="danger" onClick={() => { if (window.confirm('Remove this planned meal?')) run(() => api(`/plan/${modal.day}/${modal.mealType}`, { method: 'DELETE' }), 'Meal removed') }}><Trash2 size={15} /> Remove</Button>}{modal.existing && !modal.existing.completed_at && <Button type="button" variant="light" onClick={() => { if (window.confirm('Mark as cooked? Ingredient quantities will be deducted once.')) run(() => api(`/plan/${modal.day}/${modal.mealType}/complete`, { method: 'POST' }), 'Meal completed; inventory updated') }}><CheckCircle2 size={15} /> Mark cooked</Button>}</div><Button disabled={busy || Boolean(modal.existing?.completed_at)} type="submit">Save meal</Button></div></form></Modal>}
+      <div className="flex flex-wrap justify-between items-center gap-3"><div className="flex flex-wrap gap-2">{modal.existing && !modal.existing.completed_at && <Button type="button" disabled={busy} variant="danger" onClick={() => { if (window.confirm('Remove this planned meal?')) run(() => api(`/plan/${modal.day}/${modal.mealType}`, { method: 'DELETE' }), 'Meal removed') }}><Trash2 size={15} /> Remove meal</Button>}{modal.existing && !modal.existing.completed_at && <Button type="button" disabled={busy} variant="light" onClick={() => { if (window.confirm('Mark this meal as cooked? This permanently deducts the required usable ingredients from Pantry once.')) run(() => api(`/plan/${modal.day}/${modal.mealType}/complete`, { method: 'POST' }), 'Meal cooked — Pantry quantities deducted') }}><CheckCircle2 size={16} /> Mark cooked & deduct stock</Button>}</div>{modal.existing?.completed_at ? <span className="text-sm font-bold text-[#28724f] flex items-center gap-2"><CheckCircle2 size={18}/> Cooked · inventory already updated</span> : <Button disabled={busy} type="submit">Save meal selection</Button>}</div></form></Modal>}
   </div>;
 }

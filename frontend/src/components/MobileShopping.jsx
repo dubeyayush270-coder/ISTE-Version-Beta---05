@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ClipboardCopy,
   PackagePlus,
-  RefreshCw,
   ShoppingBasket,
   ShoppingCart,
   X,
@@ -69,7 +68,6 @@ export default function MobileShopping({
   const [dateConfirmed, setDateConfirmed] = useState(false);
 
   const [saving, setSaving] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -147,24 +145,6 @@ export default function MobileShopping({
     setMessage('');
   }
 
-  async function refreshNow() {
-    if (!onRefresh || refreshing) return;
-
-    setRefreshing(true);
-    setError('');
-
-    try {
-      await onRefresh();
-    } catch (err) {
-      setError(
-        err?.message ||
-        'Could not refresh shopping shortages.'
-      );
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   // Keep the existing shopping-list clipboard functionality.
   async function copyList() {
     try {
@@ -231,8 +211,12 @@ export default function MobileShopping({
         body: JSON.stringify(request.body),
       });
 
-      // Create a new purchase batch rather than
-      // overwriting the existing stock total.
+      // A new shortage for the same ingredient must not inherit a stale
+      // "purchased" checkmark after this batch is recorded.
+      const nextChecked = { ...checked };
+      delete nextChecked[row.key];
+      setChecked(nextChecked);
+      try { localStorage.setItem(checklistKey(weekStart), JSON.stringify(nextChecked)); } catch { /* State still updates */ }
       setExpanded(null);
 
       setMessage(
@@ -351,10 +335,8 @@ export default function MobileShopping({
           <h2>Ingredients to buy</h2>
 
           <p>
-            {weekStart
-              ? `Week starting ${weekStart}`
-              : 'Current meal-plan week'}{' '}
-            · Live shortages from KitchenSync
+            {weekStart ? `Week starting ${weekStart}` : 'Current meal-plan week'}
+            {' · '}Tap a checkbox only after buying. To update stock, use Record purchase.
           </p>
         </div>
 
@@ -369,21 +351,6 @@ export default function MobileShopping({
             Copy list
           </button>
 
-          <button
-            type="button"
-            onClick={refreshNow}
-            disabled={saving || refreshing}
-            className="ks-shopping-btn ks-shopping-btn-light"
-          >
-            <RefreshCw
-              size={16}
-              className={
-                refreshing ? 'ks-shopping-spin' : ''
-              }
-            />
-
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
         </div>
       </div>
 
@@ -473,8 +440,8 @@ export default function MobileShopping({
               <div className="ks-shopping-item-actions">
                 <span className="ks-shopping-checked-label">
                   {checked[row.key]
-                    ? 'Marked purchased · not yet added automatically'
-                    : 'Still needed'}
+                    ? 'Bought · checklist only (not added to Pantry)'
+                    : 'To buy'}
                 </span>
 
                 <button
@@ -494,8 +461,8 @@ export default function MobileShopping({
                   <PackagePlus size={16} />
 
                   {expanded === row.key
-                    ? 'Close form'
-                    : 'Add to Pantry'}
+                    ? 'Close purchase form'
+                    : 'Record purchase'}
                 </button>
               </div>
 
@@ -644,23 +611,20 @@ export default function MobileShopping({
         <ShoppingBasket size={18} />
 
         <p>
-          <strong>
-            Checklist status is stored only in
-            this browser.
-          </strong>{' '}
-          Marking purchased doesn't change stock.
-          Saving a purchase updates SQLite and
-          triggers a shortage refresh.
+          <strong>Checklist = shopping progress only.</strong>{' '}
+          Uncheck any item if you still need to buy it. Saving a purchase
+          adds a batch to Pantry and refreshes actual shortages.
         </p>
       </footer>
 
-      {/* NEW: QUICK-COMMERCE HANDOFF */}
-      <QuickCommerceHandoff
-        items={quickCommerceItems}
-      />
-
-      {/* Existing price comparison preserved */}
-      <PriceComparison rows={rows} />
+      <details className="ks-shopping-extra">
+        <summary>Open quick-commerce stores <span>External shopping links</span></summary>
+        <QuickCommerceHandoff items={quickCommerceItems} />
+      </details>
+      <details className="ks-shopping-extra">
+        <summary>Compare grocery prices <span>Manual entries only</span></summary>
+        <PriceComparison rows={rows} />
+      </details>
     </section>
   );
 }

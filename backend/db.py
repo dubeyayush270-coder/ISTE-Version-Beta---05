@@ -147,6 +147,18 @@ def init_db():
                 ON meal_plan(meal_date);
         """)
 
+        # Optional macro columns; never represent unknown values as zero.
+        nutrition_columns = {row["name"] for row in c.execute("PRAGMA table_info(recipes)")}
+        for column in ("protein_g_per_serving", "carbs_g_per_serving", "fat_g_per_serving"):
+            if column not in nutrition_columns:
+                c.execute(f"ALTER TABLE recipes ADD COLUMN {column} REAL")
+        if "nutrition_source" not in nutrition_columns:
+            c.execute("ALTER TABLE recipes ADD COLUMN nutrition_source TEXT NOT NULL DEFAULT 'unknown'")
+        # Seeded demo calorie amounts are illustrative, NOT verified nutrition.
+        c.execute("""UPDATE recipes SET nutrition_source='illustrative'
+                     WHERE nutrition_source='unknown' AND calories_per_serving>0
+                       AND tags NOT LIKE '%online%'""")
+
         # 2. DEMO SEEDING
         # Seed only when settings have not been initialized.
         settings_exist = c.execute(
@@ -223,6 +235,11 @@ def init_db():
                 """, (
                     d.isoformat(), slot, ids[recipe], 4
                 ))
+
+        # Mark newly seeded sample calorie values as illustrative as well.
+        c.execute("""UPDATE recipes SET nutrition_source='illustrative'
+                     WHERE nutrition_source='unknown' AND calories_per_serving>0
+                       AND tags NOT LIKE '%online%'""")
 
         # 3. MIGRATE OLD INVENTORY
         # Create one initial batch per existing ingredient.
