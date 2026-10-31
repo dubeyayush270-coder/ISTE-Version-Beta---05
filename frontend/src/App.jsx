@@ -319,6 +319,7 @@ const saveStock = event => {
               
               <MobilePantry
                 inventory={data.inventory}
+                dashboard={data.dashboard}
                 onManage={() =>
                   document.getElementById("inventory-controls")
                     ?.scrollIntoView({

@@ -1037,6 +1037,7 @@ def dashboard():
         planning_stock(stock),
     )
 
+
     expired = []
     expiring = []
 
@@ -1046,32 +1047,116 @@ def dashboard():
         if ingredient is None:
             continue
 
+        date_type = batch["date_type"] or "unknown"
+        recorded_date = batch["expiry_date"]
+
+        days_remaining = None
+
+        if recorded_date:
+            recorded = date.fromisoformat(recorded_date)
+            days_remaining = (recorded - today).days
+
+        usable = batch_is_usable(ingredient, batch, today)
+
         details = {
             **ingredient,
             "batch_id": batch["id"],
             "quantity": batch["quantity"],
-            "expiry_date": batch["expiry_date"],
-            "date_type": batch["date_type"],
+            "expiry_date": recorded_date,
+            "date_type": date_type,
             "date_source": batch["date_source"],
+            "days_until_date": days_remaining,
+            "usable": usable,
         }
 
-        if not batch_is_usable(ingredient, batch, today):
+        # Batch is currently excluded by the existing
+        # conservative stock-availability rules.
+        if not usable:
+            if days_remaining is not None and days_remaining < 0:
+                messages = {
+                    "use_by": (
+                        "Use-by date has passed. "
+                        "Do not consume this batch."
+                    ),
+                    "expiry": (
+                        "Expiry date has passed. "
+                        "Do not use this batch."
+                    ),
+                    "best_before": (
+                        "Best-before date has passed. "
+                        "Review product quality and storage. "
+                        "This batch is conservatively excluded "
+                        "from meal planning."
+                    ),
+                    "estimated": (
+                        "Estimated freshness date has passed. "
+                        "Review storage and condition. "
+                        "This batch is conservatively excluded "
+                        "from meal planning."
+                    ),
+                    "unknown": (
+                        "Recorded date has passed. "
+                        "Check the original product label. "
+                        "This batch is excluded from meal planning."
+                    ),
+                }
+
+                alert_message = messages.get(
+                    date_type, messages["unknown"]
+                )
+
+                alert_code = "past_recorded_date"
+
+            else:
+                alert_code = "storage_or_safety_review"
+                alert_message = (
+                    "This batch is unavailable under current "
+                    "storage or leftover safety rules. "
+                    "Review before use."
+                )
+
             expired.append({
                 **details,
-                "usable": False,
+                "alert_code": alert_code,
+                "alert_message": alert_message,
             })
+
             continue
 
-        if batch["expiry_date"]:
-            expiry = date.fromisoformat(
-                batch["expiry_date"]
-            )
+        # The recorded date is approaching within 3 days.
+        if days_remaining is not None and 0 <= days_remaining <= 3:
+            messages = {
+                "use_by": (
+                    "Use-by date is approaching. "
+                    "Follow the label and storage instructions."
+                ),
+                "expiry": (
+                    "Expiry date is approaching. "
+                    "Plan to use this batch before it passes."
+                ),
+                "best_before": (
+                    "Best-before quality date is approaching. "
+                    "Check product quality and storage."
+                ),
+                "estimated": (
+                    "Estimated freshness window is ending. "
+                    "Check condition and storage."
+                ),
+                "unknown": (
+                    "Recorded date is approaching. "
+                    "Verify the original date label."
+                ),
+            }
 
-            if today <= expiry <= today + timedelta(days=3):
-                expiring.append({
-                    **details,
-                    "usable": True,
-                })
+
+            expiring.append({
+                **details,
+                "alert_code": "approaching_recorded_date",
+                "alert_message": messages.get(
+                    date_type, messages["unknown"]
+                ),
+            })
+
 
     return {
         "household": settings(),
@@ -1083,6 +1168,8 @@ def dashboard():
         "expiring_soon": expiring,
         "shopping_count": len(audit["shopping"]),
     }
+
+
 
 
 # ==========================================

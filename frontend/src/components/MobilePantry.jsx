@@ -703,8 +703,10 @@ function PurchaseBatchManager({
   );
 }
 
+
 export default function MobilePantry({
   inventory = [],
+  dashboard = {},
   onManage,
   onScanConfirmed,
 }) {
@@ -727,6 +729,43 @@ export default function MobilePantry({
     () => liveInventory.map(normalizeItem),
     [liveInventory]
   );
+
+
+  // Group Dashboard freshness alerts by ingredient ID.
+  const freshnessAlertsByIngredient = useMemo(() => {
+    const grouped = new Map();
+
+    const alerts = [
+      ...(dashboard?.expired_or_unsafe ?? []),
+      ...(dashboard?.expiring_soon ?? []),
+    ];
+
+    for (const alert of alerts) {
+      if (alert?.id == null || alert?.batch_id == null) {
+        continue;
+      }
+
+      const ingredientId = String(alert.id);
+
+      if (!grouped.has(ingredientId)) {
+        grouped.set(ingredientId, []);
+      }
+
+      const existing = grouped.get(ingredientId);
+
+      // Protect against the same batch appearing twice.
+      if (
+        !existing.some(
+          entry => entry.batch_id === alert.batch_id
+        )
+      ) {
+        existing.push(alert);
+      }
+    }
+
+    return grouped;
+  }, [dashboard]);
+
 
   const stats = useMemo(
     () => ({
@@ -935,6 +974,44 @@ export default function MobilePantry({
                       : `Earliest date in ${item.remainingDays} days`}
                 </small>
               )}
+
+
+                {(freshnessAlertsByIngredient.get(String(item.id)) ?? [])
+                .map(alert => {
+                    const requiresReview = alert.usable === false;
+
+                    return (
+                    <div
+                        key={`freshness-${alert.batch_id}`}
+                        className={`mt-2 rounded-xl border p-3 text-xs ${
+                        requiresReview
+                            ? "border-red-200 bg-red-50 text-red-800"
+                            : "border-amber-200 bg-amber-50 text-amber-900"
+                        }`}
+                    >
+                        <p className="font-bold">
+                        {requiresReview
+                            ? "Review purchase batch"
+                            : "Date approaching"}
+                        </p>
+
+                        <p className="mt-1 opacity-80">
+                        Batch #{alert.batch_id}
+                        {" · "}
+                        {alert.quantity} {item.unit}
+                        {" · "}
+                        {String(alert.date_type || "unknown")
+                            .replaceAll("_", " ")}
+                        </p>
+
+                        <p className="mt-2 leading-relaxed">
+                        {alert.alert_message ||
+                            "Review the recorded date and storage conditions."}
+                        </p>
+                    </div>
+                    );
+                })}
+
 
               <button
                 type="button"
