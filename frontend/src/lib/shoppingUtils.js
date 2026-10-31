@@ -37,8 +37,8 @@ export function makePurchaseRequest(item, inventory, quantity, expiryDate = '', 
   if (!item?.name?.trim() || !SHOPPING_UNITS.has(item.unit)) {
     throw new Error('This ingredient has a missing name or unsupported unit.');
   }
-  if (expiryDate && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
-    throw new Error('Please enter a valid date.');
+  if (expiryDate && !isValidCalendarDate(expiryDate)) {
+    throw new Error('Please enter a valid printed date.');
   }
   const existing = findPantryMatch(inventory, item.name);
   if (existing && existing.unit !== item.unit) {
@@ -87,4 +87,33 @@ export function amountLabel(value, unit) {
 
 export function checklistKey(weekStart) {
   return `kitchensync:shopping:v1:${String(weekStart || 'current').slice(0, 10)}`;
+}
+
+// Validate dates as local calendar values; avoid timezone shifts and date rollover.
+export function isValidCalendarDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(year, month - 1, day);
+  return parsed.getFullYear() === year && parsed.getMonth() + 1 === month && parsed.getDate() === day;
+}
+
+function localISODate(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Warning only: past dates can be legitimately recorded, but require explicit confirmation.
+export function purchaseDateWarning(dateValue, today = new Date()) {
+  if (!dateValue || !isValidCalendarDate(dateValue)) return '';
+  const todayISO = localISODate(today);
+  if (dateValue < todayISO) {
+    return `The printed date ${dateValue} has already passed. Check the year and expiry before saving.`;
+  }
+  const distant = new Date(today.getFullYear() + 5, today.getMonth(), today.getDate());
+  if (dateValue > localISODate(distant)) {
+    return `The printed date ${dateValue} is over five years away. Check the year before saving.`;
+  }
+  return '';
 }

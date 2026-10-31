@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import {
-  amountLabel, checklistKey, makePurchaseRequest, normalizedShoppingRows,
+  amountLabel, checklistKey, makePurchaseRequest, normalizedShoppingRows, purchaseDateWarning,
 } from '../lib/shoppingUtils';
 import './MobileShopping.css';
 
@@ -32,6 +32,7 @@ export default function MobileShopping({
   const [quantity, setQuantity] = useState('');
   const [dateValue, setDateValue] = useState('');
   const [dateType, setDateType] = useState('expiry');
+  const [dateConfirmed, setDateConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -45,6 +46,7 @@ export default function MobileShopping({
   }, [weekStart]);
 
   const purchasedCount = rows.filter((row) => Boolean(checked[row.key])).length;
+  const dateWarning = purchaseDateWarning(dateValue);
 
   function toggleChecked(key) {
     const updated = { ...checked, [key]: !checked[key] };
@@ -61,6 +63,7 @@ export default function MobileShopping({
     setQuantity(String(row.missing));
     setDateValue('');
     setDateType('expiry');
+    setDateConfirmed(false);
     setError('');
     setMessage('');
   }
@@ -98,6 +101,10 @@ export default function MobileShopping({
   async function savePurchase(event, row) {
     event.preventDefault();
     if (saving) return;
+    if (dateWarning && !dateConfirmed) {
+      setError('Confirm the unusual printed date before saving the purchase.');
+      return;
+    }
     setSaving(true);
     setError('');
     setMessage('');
@@ -179,14 +186,14 @@ export default function MobileShopping({
                 </button>
               </div>
               {expanded === row.key && (
-                <form className="ks-shopping-purchase" onSubmit={(event) => savePurchase(event, row)}>
+                <form className="ks-shopping-purchase" onSubmit={(event) => savePurchase(event, row)} aria-busy={saving}>
                   <div className="ks-shopping-help">Confirm how much you actually bought. This creates a new purchase batch, not an overwrite of your existing stock.</div>
                   <div className="ks-shopping-form-grid">
                     <label>Purchased quantity ({row.unit})
                       <input autoFocus required type="number" min="0.01" max="1000000" step="any" value={quantity} onChange={(event) => setQuantity(event.target.value)}/>
                     </label>
                     <label>Printed date (optional)
-                      <input type="date" value={dateValue} onChange={(event) => setDateValue(event.target.value)}/>
+                      <input type="date" value={dateValue} onChange={(event) => { setDateValue(event.target.value); setDateConfirmed(false); }}/>
                     </label>
                     {dateValue && <label>Date type
                       <select value={dateType} onChange={(event) => setDateType(event.target.value)}>
@@ -196,8 +203,20 @@ export default function MobileShopping({
                       </select>
                     </label>}
                   </div>
+                  {dateWarning && (
+                    <div className="ks-shopping-date-warning" role="alert">
+                      <AlertCircle size={18} aria-hidden="true" />
+                      <div>
+                        <p>{dateWarning}</p>
+                        <label className="ks-shopping-date-confirm">
+                          <input type="checkbox" checked={dateConfirmed} onChange={(event) => setDateConfirmed(event.target.checked)} />
+                          I checked the printed date and want to save it as entered.
+                        </label>
+                      </div>
+                    </div>
+                  )}
                   <p className="ks-shopping-helper-text">No printed date? Leave it blank. KitchenSync won't invent an expiry date.</p>
-                  <button type="submit" disabled={saving} className="ks-shopping-btn ks-shopping-btn-primary ks-shopping-submit">
+                  <button type="submit" disabled={saving || Boolean(dateWarning && !dateConfirmed)} className="ks-shopping-btn ks-shopping-btn-primary ks-shopping-submit">
                     <PackagePlus size={16}/>{saving ? 'Saving purchase...' : 'Confirm and save purchase'}
                   </button>
                 </form>

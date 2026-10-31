@@ -57,3 +57,16 @@
 @keyframes ks-shopping-spin { to { transform:rotate(360deg); } }
 .ks-shopping-spin { animation:ks-shopping-spin 1s linear infinite; }
 @media(prefers-reduced-motion:reduce) { .ks-shopping-spin { animation:none; } }
+
+/* Phase 6.7C — accidental date guard and accessible mobile controls */
+.ks-shopping-date-warning { display:flex; align-items:flex-start; gap:9px; padding:12px; margin-top:12px; border-radius:12px; background:#fff6e6; border:1px solid #ebd3a2; color:#7b531b; font-size:12px; line-height:1.5; }
+.ks-shopping-date-warning > svg { flex:none; margin-top:1px; }
+.ks-shopping-date-confirm { display:flex; align-items:flex-start; gap:9px; margin-top:9px; font-weight:700; cursor:pointer; }
+.ks-shopping-date-confirm input { width:18px; height:18px; flex:none; accent-color:#317e58; }
+.ks-shopping-btn { min-height:44px; }
+.ks-shopping-btn:focus-visible, .ks-shopping-feedback button:focus-visible { outline:3px solid #6dad85; outline-offset:3px; }
+@media (max-width:480px) {
+  .ks-shopping-form-grid input, .ks-shopping-form-grid select { font-size:16px; }
+  .ks-shopping-toolbar-actions { width:100%; }
+  .ks-shopping-toolbar-actions .ks-shopping-btn { flex:1; }
+}
