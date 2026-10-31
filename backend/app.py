@@ -1,4 +1,6 @@
-"""KitchenSync v0.1 demo: household plans, recipe book, inventory and cooking."""
+
+"""KitchenSync: household plans, recipes, batch inventory and cooking."""
+
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -8,11 +10,17 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from core import audit_meals, inventory_map, scale_ingredients, stock_available
+from core import (
+    audit_meals,
+    inventory_map,
+    scale_ingredients,
+    stock_available,
+)
 from db import connection, init_db
 
+
 APP_DIR = Path(__file__).resolve().parent.parent
-app = FastAPI(title="KitchenSync API", version="0.2.0")
+app = FastAPI(title="KitchenSync API", version="0.3.0")
 
 
 @app.on_event("startup")
@@ -20,40 +28,186 @@ def startup():
     init_db()
 
 
+# ==========================================
+# DATABASE HELPERS
+# ==========================================
+
 def row_dict(row):
     return dict(row)
 
 
+def batch_is_usable(ingredient, batch, today=None):
+    """Check one purchase against expiry and leftover rules."""
+    if float(batch["quantity"]) <= 0:
+        return False
+
+    candidate = dict(ingredient)
+    candidate["expiry_date"] = batch["expiry_date"]
+
+    # Preserve ingredient-level leftover safety information.
+    if batch.get("storage") is not None:
+        candidate["storage"] = batch["storage"]
+
+    return stock_available(candidate, today=today)
+
+
 def stock_list(c):
-    return [dict(r) for r in c.execute("SELECT * FROM stock ORDER BY name")]
+    """Inventory with physical and usable batch quantities."""
+    items = [
+        dict(row)
+        for row in c.execute(
+            "SELECT * FROM stock ORDER BY name"
+        )
+    ]
+
+    for item in items:
+        batches = [
+            dict(row)
+            for row in c.execute(
+                "SELECT * FROM stock_batches WHERE stock_id = ?",
+                (item["id"],),
+            )
+        ]
+
+        if batches:
+            physical = sum(
+                float(batch["quantity"]) for batch in batches
+            )
+            usable = sum(
+                float(batch["quantity"])
+                for batch in batches
+                if batch_is_usable(item, batch)
+            )
+        else:
+            # Compatibility for legacy records not yet migrated.
+            physical = float(item["quantity"])
+            usable = (
+                physical if stock_available(item) else 0.0
+            )
+
+        item["quantity"] = round(physical, 2)
+        item["usable_quantity"] = round(usable, 2)
+        item["usable"] = usable > 0
+
+    return items
+
+
+def planning_stock(items):
+    """
+    Supply existing core.py with usable quantities.
+
+    The original audit_meals() and inventory_map()
+    check ingredient-level expiry. Remove the summary
+    date from these temporary planning copies because
+    expired batches were already excluded above.
+    """
+    result = []
+
+    for item in items:
+        entry = dict(item)
+        entry["quantity"] = item["usable_quantity"]
+        entry["expiry_date"] = None
+        result.append(entry)
+
+    return result
+
+
+def sync_stock(c, item_id):
+    """Synchronize a stock summary from its batches."""
+    c.execute(
+        """
+        UPDATE stock
+        SET quantity = (
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM stock_batches
+                WHERE stock_id = ?
+            ),
+            expiry_date = (
+                SELECT MIN(expiry_date)
+                FROM stock_batches
+                WHERE stock_id = ?
+                  AND quantity > 0
+            )
+        WHERE id = ?
+        """,
+        (item_id, item_id, item_id),
+    )
+
+
+def seed_missing_batches(c):
+    """Support legacy stock records without creating duplicates."""
+    c.execute(
+        """
+        INSERT INTO stock_batches(
+            stock_id, quantity, expiry_date,
+            date_type, date_source, storage
+        )
+        SELECT
+            s.id, s.quantity, s.expiry_date,
+            'unknown', 'legacy_migration', s.storage
+        FROM stock AS s
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM stock_batches AS b
+            WHERE b.stock_id = s.id
+        )
+        """
+    )
 
 
 def recipe_list(c):
-    out = []
-    for r in c.execute("SELECT * FROM recipes ORDER BY category, name"):
-        item = dict(r)
-        for k in ('tags','ingredients','steps'):
-            item[k] = json.loads(item[k])
-        out.append(item)
-    return out
+    output = []
+
+    for row in c.execute(
+        "SELECT * FROM recipes ORDER BY category, name"
+    ):
+        item = dict(row)
+
+        for key in ("tags", "ingredients", "steps"):
+            item[key] = json.loads(item[key])
+
+        output.append(item)
+
+    return output
 
 
 def plans(c, start, days=7):
-    end = start + timedelta(days=days-1)
-    return [dict(r) for r in c.execute("""SELECT m.*, r.name AS recipe_name, r.calories_per_serving,
-        r.minutes, r.category FROM meal_plan m JOIN recipes r ON m.recipe_id=r.id
-        WHERE m.meal_date BETWEEN ? AND ? ORDER BY meal_date, CASE meal_type
-        WHEN 'breakfast' THEN 1 WHEN 'lunch' THEN 2 ELSE 3 END""",(start.isoformat(),end.isoformat()))]
+    end = start + timedelta(days=days - 1)
 
+    return [
+        dict(row)
+        for row in c.execute(
+            """
+            SELECT m.*, r.name AS recipe_name,
+                   r.calories_per_serving,
+                   r.minutes, r.category
+            FROM meal_plan m
+            JOIN recipes r ON m.recipe_id = r.id
+            WHERE m.meal_date BETWEEN ? AND ?
+            ORDER BY meal_date,
+                CASE meal_type
+                    WHEN 'breakfast' THEN 1
+                    WHEN 'lunch' THEN 2
+                    ELSE 3
+                END
+            """,
+            (start.isoformat(), end.isoformat()),
+        )
+    ]
+
+
+# ==========================================
+# INPUT MODELS
+# ==========================================
 
 class HouseholdUpdate(BaseModel):
-    household_name: str = Field(min_length=1,max_length=80)
-    household_size: int = Field(ge=1,le=30)
+    household_name: str = Field(min_length=1, max_length=80)
+    household_size: int = Field(ge=1, le=30)
 
 
 class StockInput(BaseModel):
-    name: str = Field(min_length=1,max_length=80)
-    quantity: float = Field(ge=0,le=1_000_000)
+    name: str = Field(min_length=1, max_length=80)
+    quantity: float = Field(ge=0, le=1_000_000)
     unit: str
     expiry_date: date | None = None
     is_leftover: bool = False
@@ -61,197 +215,873 @@ class StockInput(BaseModel):
     storage: str | None = None
 
 
+class BatchInput(BaseModel):
+    quantity: float = Field(gt=0, le=1_000_000)
+    expiry_date: date | None = None
+    date_type: str = "unknown"
+    date_source: str | None = "manual"
+    barcode: str | None = None
+    purchase_date: date | None = None
+    storage: str | None = None
+
+
 class MealInput(BaseModel):
     recipe_id: int
-    eaters: int = Field(ge=1,le=30)
+    eaters: int = Field(ge=1, le=30)
 
 
-@app.get('/api/health')
-def health():
-    return {'status':'ok','version':'0.2.0'}
+DATE_TYPES = {
+    "expiry", "use_by", "best_before",
+    "estimated", "unknown",
+}
 
 
-@app.get('/api/settings')
-def settings():
-    with connection() as c:
-        return row_dict(c.execute('SELECT * FROM settings WHERE id=1').fetchone())
+def validate_batch(data):
+    if data.date_type not in DATE_TYPES:
+        raise HTTPException(422, "Invalid date type")
 
-
-@app.put('/api/settings')
-def save_settings(data:HouseholdUpdate):
-    with connection() as c:
-        c.execute('UPDATE settings SET household_name=?,household_size=? WHERE id=1', (data.household_name.strip(),data.household_size))
-    return settings()
-
-
-@app.get('/api/inventory')
-def inventory():
-    with connection() as c:
-        items = stock_list(c)
-    for i in items:
-        i['usable'] = stock_available(i)
-    return items
+    return (
+        data.quantity,
+        data.expiry_date.isoformat()
+        if data.expiry_date else None,
+        data.date_type,
+        data.date_source,
+        data.barcode,
+        data.purchase_date.isoformat()
+        if data.purchase_date else None,
+        data.storage,
+    )
 
 
 def validate_stock(data):
-    if data.unit not in ('g','ml','pcs'):
-        raise HTTPException(422,'Unit must be g, ml, or pcs. Convert kg to g and L to ml.')
-    if data.is_leftover and (data.prepared_at is None or data.storage not in ('refrigerated','room_temperature','frozen')):
-        raise HTTPException(422,'Leftovers require a prepared time and storage method.')
-    return (data.name.strip(),data.quantity,data.unit,data.expiry_date.isoformat() if data.expiry_date else None,
-            int(data.is_leftover),data.prepared_at.isoformat(timespec='seconds') if data.prepared_at else None,data.storage)
+    if data.unit not in ("g", "ml", "pcs"):
+        raise HTTPException(
+            422,
+            "Unit must be g, ml, or pcs. "
+            "Convert kg to g and L to ml.",
+        )
+
+    if data.is_leftover and (
+        data.prepared_at is None
+        or data.storage not in (
+            "refrigerated", "room_temperature", "frozen"
+        )
+    ):
+        raise HTTPException(
+            422,
+            "Leftovers require a prepared time and storage method.",
+        )
+
+    return (
+        data.name.strip(),
+        data.quantity,
+        data.unit,
+        data.expiry_date.isoformat()
+        if data.expiry_date else None,
+        int(data.is_leftover),
+        data.prepared_at.isoformat(timespec="seconds")
+        if data.prepared_at else None,
+        data.storage,
+    )
 
 
-@app.post('/api/inventory',status_code=201)
-def add_inventory(data:StockInput):
-    vals = validate_stock(data)
+# ==========================================
+# HEALTH AND SETTINGS
+# ==========================================
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "version": "0.3.0"}
+
+
+@app.get("/api/settings")
+def settings():
     with connection() as c:
-        if c.execute('SELECT 1 FROM stock WHERE name=?',(vals[0],)).fetchone():
-            raise HTTPException(409,'An item with this name already exists. Edit it instead.')
-        c.execute('INSERT INTO stock(name,quantity,unit,expiry_date,is_leftover,prepared_at,storage) VALUES(?,?,?,?,?,?,?)',vals)
-    return {'ok':True}
+        return row_dict(
+            c.execute(
+                "SELECT * FROM settings WHERE id=1"
+            ).fetchone()
+        )
 
 
-@app.put('/api/inventory/{item_id}')
-def edit_inventory(item_id:int,data:StockInput):
-    vals = validate_stock(data)
+@app.put("/api/settings")
+def save_settings(data: HouseholdUpdate):
     with connection() as c:
-        if not c.execute('SELECT 1 FROM stock WHERE id=?',(item_id,)).fetchone():
-            raise HTTPException(404,'Ingredient not found')
-        if c.execute('SELECT 1 FROM stock WHERE name=? AND id<>?',(vals[0],item_id)).fetchone():
-            raise HTTPException(409,'Ingredient name already exists')
-        c.execute('UPDATE stock SET name=?,quantity=?,unit=?,expiry_date=?,is_leftover=?,prepared_at=?,storage=? WHERE id=?',(*vals,item_id))
-    return {'ok':True}
+        c.execute(
+            """
+            UPDATE settings
+            SET household_name=?, household_size=?
+            WHERE id=1
+            """,
+            (data.household_name.strip(), data.household_size),
+        )
+
+    return settings()
 
 
-@app.delete('/api/inventory/{item_id}')
-def remove_inventory(item_id:int):
+# ==========================================
+# INVENTORY
+# ==========================================
+
+@app.get("/api/inventory")
+def inventory():
     with connection() as c:
-        cur=c.execute('DELETE FROM stock WHERE id=?',(item_id,))
-        if not cur.rowcount:
-            raise HTTPException(404,'Ingredient not found')
-    return {'ok':True}
+        return stock_list(c)
 
 
-@app.get('/api/recipes')
+@app.get("/api/inventory/{item_id}/batches")
+def get_inventory_batches(item_id: int):
+    with connection() as c:
+        ingredient = c.execute(
+            "SELECT id, name, unit FROM stock WHERE id=?",
+            (item_id,),
+        ).fetchone()
+
+        if ingredient is None:
+            raise HTTPException(404, "Ingredient not found")
+
+        batches = [
+            dict(row)
+            for row in c.execute(
+                """
+                SELECT *
+                FROM stock_batches
+                WHERE stock_id=?
+                ORDER BY
+                    CASE
+                        WHEN expiry_date IS NULL THEN 1
+                        ELSE 0
+                    END,
+                    expiry_date,
+                    id
+                """,
+                (item_id,),
+            )
+        ]
+
+        return {
+            "ingredient_id": ingredient["id"],
+            "ingredient_name": ingredient["name"],
+            "unit": ingredient["unit"],
+            "total_quantity": round(
+                sum(b["quantity"] for b in batches), 2
+            ),
+            "batches": batches,
+        }
+
+
+@app.post("/api/inventory/{item_id}/batches", status_code=201)
+def add_inventory_batch(item_id: int, data: BatchInput):
+    values = validate_batch(data)
+
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        ingredient = c.execute(
+            "SELECT id FROM stock WHERE id=?",
+            (item_id,),
+        ).fetchone()
+
+        if ingredient is None:
+            raise HTTPException(404, "Ingredient not found")
+
+        cursor = c.execute(
+            """
+            INSERT INTO stock_batches(
+                stock_id, quantity, expiry_date,
+                date_type, date_source, barcode,
+                purchase_date, storage
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (item_id, *values),
+        )
+
+        sync_stock(c, item_id)
+
+        total = c.execute(
+            "SELECT quantity FROM stock WHERE id=?",
+            (item_id,),
+        ).fetchone()["quantity"]
+
+    return {
+        "ok": True,
+        "batch_id": cursor.lastrowid,
+        "ingredient_id": item_id,
+        "total_quantity": total,
+        "message": "Purchase batch added successfully",
+    }
+
+
+@app.put("/api/inventory/{item_id}/batches/{batch_id}")
+def edit_inventory_batch(
+    item_id: int,
+    batch_id: int,
+    data: BatchInput,
+):
+    values = validate_batch(data)
+
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        cursor = c.execute(
+            """
+            UPDATE stock_batches
+            SET quantity=?, expiry_date=?, date_type=?,
+                date_source=?, barcode=?, purchase_date=?,
+                storage=?
+            WHERE id=? AND stock_id=?
+            """,
+            (*values, batch_id, item_id),
+        )
+
+        if not cursor.rowcount:
+            raise HTTPException(404, "Purchase batch not found")
+
+        sync_stock(c, item_id)
+
+    return {"ok": True}
+
+
+@app.delete("/api/inventory/{item_id}/batches/{batch_id}")
+def delete_inventory_batch(item_id: int, batch_id: int):
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        cursor = c.execute(
+            """
+            DELETE FROM stock_batches
+            WHERE id=? AND stock_id=?
+            """,
+            (batch_id, item_id),
+        )
+
+        if not cursor.rowcount:
+            raise HTTPException(404, "Purchase batch not found")
+
+        sync_stock(c, item_id)
+
+    return {"ok": True}
+
+
+@app.post("/api/inventory", status_code=201)
+def add_inventory(data: StockInput):
+    values = validate_stock(data)
+
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        if c.execute(
+            "SELECT 1 FROM stock WHERE name=?",
+            (values[0],),
+        ).fetchone():
+            raise HTTPException(
+                409,
+                "An item with this name already exists. "
+                "Add a purchase batch instead.",
+            )
+
+        cursor = c.execute(
+            """
+            INSERT INTO stock(
+                name, quantity, unit, expiry_date,
+                is_leftover, prepared_at, storage
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            values,
+        )
+
+        item_id = cursor.lastrowid
+
+        c.execute(
+            """
+            INSERT INTO stock_batches(
+                stock_id, quantity, expiry_date,
+                date_type, date_source, storage
+            )
+            VALUES (?, ?, ?, 'unknown', 'manual', ?)
+            """,
+            (
+                item_id,
+                data.quantity,
+                values[3],
+                data.storage,
+            ),
+        )
+
+    return {"ok": True}
+
+
+@app.put("/api/inventory/{item_id}")
+def edit_inventory(item_id: int, data: StockInput):
+    values = validate_stock(data)
+
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        existing = c.execute(
+            "SELECT id FROM stock WHERE id=?",
+            (item_id,),
+        ).fetchone()
+
+        if existing is None:
+            raise HTTPException(404, "Ingredient not found")
+
+        if c.execute(
+            "SELECT 1 FROM stock WHERE name=? AND id<>?",
+            (values[0], item_id),
+        ).fetchone():
+            raise HTTPException(
+                409, "Ingredient name already exists"
+            )
+
+        batch_count = c.execute(
+            """
+            SELECT COUNT(*)
+            FROM stock_batches
+            WHERE stock_id=?
+            """,
+            (item_id,),
+        ).fetchone()[0]
+
+        if batch_count > 1:
+            raise HTTPException(
+                409,
+                "This ingredient has multiple purchase batches. "
+                "Edit its batches individually.",
+            )
+
+        c.execute(
+            """
+            UPDATE stock
+            SET name=?, quantity=?, unit=?, expiry_date=?,
+                is_leftover=?, prepared_at=?, storage=?
+            WHERE id=?
+            """,
+            (*values, item_id),
+        )
+
+        if batch_count == 1:
+            c.execute(
+                """
+                UPDATE stock_batches
+                SET quantity=?, expiry_date=?, storage=?
+                WHERE stock_id=?
+                """,
+                (
+                    data.quantity,
+                    values[3],
+                    data.storage,
+                    item_id,
+                ),
+            )
+        else:
+            c.execute(
+                """
+                INSERT INTO stock_batches(
+                    stock_id, quantity, expiry_date,
+                    date_type, date_source, storage
+                )
+                VALUES (?, ?, ?, 'unknown', 'manual', ?)
+                """,
+                (
+                    item_id,
+                    data.quantity,
+                    values[3],
+                    data.storage,
+                ),
+            )
+
+        sync_stock(c, item_id)
+
+    return {"ok": True}
+
+
+@app.delete("/api/inventory/{item_id}")
+def remove_inventory(item_id: int):
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        cursor = c.execute(
+            "DELETE FROM stock WHERE id=?",
+            (item_id,),
+        )
+
+        if not cursor.rowcount:
+            raise HTTPException(404, "Ingredient not found")
+
+    return {"ok": True}
+
+
+# ==========================================
+# RECIPES AND SUGGESTIONS
+# ==========================================
+
+@app.get("/api/recipes")
 def recipes():
     with connection() as c:
         return recipe_list(c)
 
 
-@app.get('/api/suggestions')
-def suggestions(craving:str=''):
-    """Offline rules in v0.1; replace with an AI tool adapter in a later milestone."""
+@app.get("/api/suggestions")
+def suggestions(craving: str = ""):
+    """Offline fallback suggestions; AI integration comes later."""
     with connection() as c:
-        stock = inventory_map(stock_list(c))
-        recipes = recipe_list(c)
+        stock = inventory_map(planning_stock(stock_list(c)))
+        recipes_data = recipe_list(c)
+
     words = set(craving.lower().split())
-    results=[]
-    for recipe in recipes:
-        req = scale_ingredients(recipe,2)
-        covered = sum(1 for r in req if r['name'].casefold() in stock and stock[r['name'].casefold()]['unit']==r['unit'] and stock[r['name'].casefold()]['quantity']>=r['quantity'])
-        match = sum(1 for w in words if w in recipe['name'].lower() or w in recipe['tags'])
-        results.append({'recipe':recipe,'covered':covered,'total':len(req),'score':round(covered/max(1,len(req)),2)+match*0.5})
-    results.sort(key=lambda r:r['score'],reverse=True)
-    return {'mode':'offline-rule-based-demo','results':results[:5]}
+    results = []
+
+    for recipe in recipes_data:
+        required = scale_ingredients(recipe, 2)
+
+        covered = sum(
+            1
+            for need in required
+            if (
+                need["name"].casefold() in stock
+                and stock[need["name"].casefold()]["unit"]
+                == need["unit"]
+                and stock[need["name"].casefold()]["quantity"]
+                >= need["quantity"]
+            )
+        )
+
+        match = sum(
+            1
+            for word in words
+            if (
+                word in recipe["name"].lower()
+                or word in recipe["tags"]
+            )
+        )
+
+        results.append({
+            "recipe": recipe,
+            "covered": covered,
+            "total": len(required),
+            "score": round(
+                covered / max(1, len(required)), 2
+            ) + match * 0.5,
+        })
+
+    results.sort(key=lambda r: r["score"], reverse=True)
+
+    return {
+        "mode": "offline-rule-based-demo",
+        "results": results[:5],
+    }
 
 
-@app.get('/api/plan')
-def get_plan(start:date|None=None,days:int=Query(7,ge=1,le=31)):
+# ==========================================
+# MEAL PLANNING
+# ==========================================
+
+@app.get("/api/plan")
+def get_plan(
+    start: date | None = None,
+    days: int = Query(7, ge=1, le=31),
+):
     with connection() as c:
-        return plans(c,start or date.today(),days)
+        return plans(c, start or date.today(), days)
 
 
-@app.put('/api/plan/{meal_date}/{meal_type}')
-def set_meal(meal_date:date,meal_type:str,data:MealInput):
-    if meal_type not in ('breakfast','lunch','dinner'):
-        raise HTTPException(422,'Invalid meal type')
+@app.put("/api/plan/{meal_date}/{meal_type}")
+def set_meal(
+    meal_date: date,
+    meal_type: str,
+    data: MealInput,
+):
+    if meal_type not in ("breakfast", "lunch", "dinner"):
+        raise HTTPException(422, "Invalid meal type")
+
     with connection() as c:
-        recipe=c.execute('SELECT 1 FROM recipes WHERE id=?',(data.recipe_id,)).fetchone()
-        if not recipe: raise HTTPException(404,'Recipe not found')
-        existing=c.execute('SELECT completed_at FROM meal_plan WHERE meal_date=? AND meal_type=?',(meal_date.isoformat(),meal_type)).fetchone()
-        if existing and existing['completed_at']:
-            raise HTTPException(409,'Completed meals cannot be changed; stock has already been deducted.')
-        c.execute('''INSERT INTO meal_plan(meal_date,meal_type,recipe_id,eaters) VALUES(?,?,?,?)
-            ON CONFLICT(meal_date,meal_type) DO UPDATE SET recipe_id=excluded.recipe_id,eaters=excluded.eaters''',
-            (meal_date.isoformat(),meal_type,data.recipe_id,data.eaters))
-    return {'ok':True}
+        recipe = c.execute(
+            "SELECT 1 FROM recipes WHERE id=?",
+            (data.recipe_id,),
+        ).fetchone()
+
+        if not recipe:
+            raise HTTPException(404, "Recipe not found")
+
+        existing = c.execute(
+            """
+            SELECT completed_at
+            FROM meal_plan
+            WHERE meal_date=? AND meal_type=?
+            """,
+            (meal_date.isoformat(), meal_type),
+        ).fetchone()
+
+        if existing and existing["completed_at"]:
+            raise HTTPException(
+                409,
+                "Completed meals cannot be changed; "
+                "stock has already been deducted.",
+            )
+
+        c.execute(
+            """
+            INSERT INTO meal_plan(
+                meal_date, meal_type, recipe_id, eaters
+            )
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(meal_date, meal_type)
+            DO UPDATE SET
+                recipe_id=excluded.recipe_id,
+                eaters=excluded.eaters
+            """,
+            (
+                meal_date.isoformat(),
+                meal_type,
+                data.recipe_id,
+                data.eaters,
+            ),
+        )
+
+    return {"ok": True}
 
 
-@app.delete('/api/plan/{meal_date}/{meal_type}')
-def delete_meal(meal_date:date,meal_type:str):
+@app.delete("/api/plan/{meal_date}/{meal_type}")
+def delete_meal(meal_date: date, meal_type: str):
     with connection() as c:
-        item=c.execute('SELECT completed_at FROM meal_plan WHERE meal_date=? AND meal_type=?',(meal_date.isoformat(),meal_type)).fetchone()
-        if not item:raise HTTPException(404,'Meal not found')
-        if item['completed_at']:raise HTTPException(409,'Cannot delete a completed meal')
-        c.execute('DELETE FROM meal_plan WHERE meal_date=? AND meal_type=?',(meal_date.isoformat(),meal_type))
-    return {'ok':True}
+        existing = c.execute(
+            """
+            SELECT completed_at
+            FROM meal_plan
+            WHERE meal_date=? AND meal_type=?
+            """,
+            (meal_date.isoformat(), meal_type),
+        ).fetchone()
+
+        if not existing:
+            raise HTTPException(404, "Meal not found")
+
+        if existing["completed_at"]:
+            raise HTTPException(
+                409, "Cannot delete a completed meal"
+            )
+
+        c.execute(
+            """
+            DELETE FROM meal_plan
+            WHERE meal_date=? AND meal_type=?
+            """,
+            (meal_date.isoformat(), meal_type),
+        )
+
+    return {"ok": True}
 
 
-@app.get('/api/stock-check')
-def stock_check(start:date|None=None,days:int=Query(7,ge=1,le=31)):
-    start=start or date.today()
+@app.get("/api/stock-check")
+def stock_check(
+    start: date | None = None,
+    days: int = Query(7, ge=1, le=31),
+):
+    start = start or date.today()
+
     with connection() as c:
-        meals=plans(c,start,days)
-        stock=stock_list(c)
-        rs=recipe_list(c)
-    audit=audit_meals(meals,{r['id']:r for r in rs},stock)
-    return {'start':start.isoformat(),'days':days,**audit}
+        meals = plans(c, start, days)
+        stock = planning_stock(stock_list(c))
+        recipes_data = recipe_list(c)
+
+    audit = audit_meals(
+        meals,
+        {recipe["id"]: recipe for recipe in recipes_data},
+        stock,
+    )
+
+    return {
+        "start": start.isoformat(),
+        "days": days,
+        **audit,
+    }
 
 
-@app.post('/api/plan/{meal_date}/{meal_type}/complete')
-def complete_meal(meal_date:date,meal_type:str):
+# ==========================================
+# BATCH-AWARE MEAL COMPLETION
+# ==========================================
+
+@app.post("/api/plan/{meal_date}/{meal_type}/complete")
+def complete_meal(meal_date: date, meal_type: str):
     with connection() as c:
-        c.execute('BEGIN IMMEDIATE')
-        row=c.execute('''SELECT m.*, r.name recipe_name,r.base_servings,r.ingredients FROM meal_plan m
-          JOIN recipes r ON r.id=m.recipe_id WHERE m.meal_date=? AND m.meal_type=?''',
-          (meal_date.isoformat(),meal_type)).fetchone()
-        if not row: raise HTTPException(404,'Planned meal not found')
-        if row['completed_at']:raise HTTPException(409,'Already completed. Inventory was deducted previously.')
-        recipe={'base_servings':row['base_servings'],'ingredients':json.loads(row['ingredients'])}
-        required=scale_ingredients(recipe,row['eaters'])
-        stock={x['name'].casefold():x for x in stock_list(c)}
-        problems=[]
-        for r in required:
-            item=stock.get(r['name'].casefold())
-            if not item or item['unit']!=r['unit'] or not stock_available(item) or item['quantity']+1e-8<r['quantity']:
-                problems.append(f"{r['name']}: need {r['quantity']} {r['unit']}")
-        if problems:
-            raise HTTPException(409,{'message':'Not enough usable ingredients. Update stock or meal before completing.','missing':problems})
-        for r in required:
-            c.execute('UPDATE stock SET quantity=MAX(0,quantity-?) WHERE name=?', (r['quantity'],r['name']))
-        c.execute('UPDATE meal_plan SET completed_at=? WHERE id=?',(datetime.now().isoformat(timespec='seconds'),row['id']))
-    return {'ok':True,'recipe':row['recipe_name'],'deducted':required}
+        c.execute("BEGIN IMMEDIATE")
+
+        seed_missing_batches(c)
+
+        row = c.execute(
+            """
+            SELECT
+                m.*,
+                r.name AS recipe_name,
+                r.base_servings,
+                r.ingredients
+            FROM meal_plan m
+            JOIN recipes r ON r.id=m.recipe_id
+            WHERE m.meal_date=? AND m.meal_type=?
+            """,
+            (meal_date.isoformat(), meal_type),
+        ).fetchone()
+
+        if row is None:
+            raise HTTPException(404, "Planned meal not found")
+
+        if row["completed_at"]:
+            raise HTTPException(
+                409,
+                "Already completed. Inventory was deducted previously.",
+            )
+
+        recipe = {
+            "base_servings": row["base_servings"],
+            "ingredients": json.loads(row["ingredients"]),
+        }
+
+        required = scale_ingredients(recipe, row["eaters"])
+        stock = {
+            item["name"].casefold(): item
+            for item in stock_list(c)
+        }
+
+        # Aggregate duplicate ingredients before checking.
+        needs = {}
+
+        for ingredient in required:
+            key = ingredient["name"].casefold()
+
+            if key not in needs:
+                needs[key] = {
+                    "name": ingredient["name"],
+                    "unit": ingredient["unit"],
+                    "quantity": 0.0,
+                }
+
+            if needs[key]["unit"] != ingredient["unit"]:
+                raise HTTPException(
+                    409,
+                    "Conflicting units for " + ingredient["name"],
+                )
+
+            needs[key]["quantity"] += ingredient["quantity"]
+
+        missing = []
+
+        for key, need in needs.items():
+            item = stock.get(key)
+
+            if (
+                item is None
+                or item["unit"] != need["unit"]
+                or item["usable_quantity"] + 1e-8
+                < need["quantity"]
+            ):
+                missing.append(
+                    f"{need['name']}: need "
+                    f"{round(need['quantity'], 2)} "
+                    f"{need['unit']}"
+                )
+
+        if missing:
+            raise HTTPException(
+                409,
+                {
+                    "message": "Not enough usable ingredients.",
+                    "missing": missing,
+                },
+            )
+
+        # FEFO: First Expiring, First Out.
+        for key, need in needs.items():
+            item = stock[key]
+            remaining = need["quantity"]
+
+            batches = [
+                dict(batch)
+                for batch in c.execute(
+                    """
+                    SELECT *
+                    FROM stock_batches
+                    WHERE stock_id=? AND quantity>0
+                    ORDER BY
+                        CASE
+                            WHEN expiry_date IS NULL THEN 1
+                            ELSE 0
+                        END,
+                        expiry_date,
+                        id
+                    """,
+                    (item["id"],),
+                )
+            ]
+
+            for batch in batches:
+                if remaining <= 1e-8:
+                    break
+
+                if not batch_is_usable(item, batch):
+                    continue
+
+                taken = min(
+                    remaining,
+                    float(batch["quantity"]),
+                )
+
+                c.execute(
+                    """
+                    UPDATE stock_batches
+                    SET quantity=MAX(0, quantity-?)
+                    WHERE id=?
+                    """,
+                    (taken, batch["id"]),
+                )
+
+                remaining -= taken
+
+            if remaining > 1e-6:
+                raise HTTPException(
+                    409,
+                    "Insufficient eligible batches for "
+                    + need["name"],
+                )
+
+            sync_stock(c, item["id"])
+
+        c.execute(
+            """
+            UPDATE meal_plan
+            SET completed_at=?
+            WHERE id=?
+            """,
+            (
+                datetime.now().isoformat(timespec="seconds"),
+                row["id"],
+            ),
+        )
+
+    return {
+        "ok": True,
+        "recipe": row["recipe_name"],
+        "deducted": required,
+    }
 
 
-@app.get('/api/dashboard')
+# ==========================================
+# BATCH-AWARE DASHBOARD
+# ==========================================
+
+@app.get("/api/dashboard")
 def dashboard():
-    today=date.today()
+    today = date.today()
+
     with connection() as c:
-        stock=stock_list(c)
-        rs=recipe_list(c)
-        week=plans(c,today,7)
-        today_plan=[m for m in week if m['meal_date']==today.isoformat()]
-    audit=audit_meals(week,{r['id']:r for r in rs},stock)
-    expired=[i for i in stock if not stock_available(i)]
-    expiring=[i for i in stock if i.get('expiry_date') and today<=date.fromisoformat(i['expiry_date'])<=today+timedelta(days=3)]
-    return {'household':settings(),'stock_items':len(stock),'planned_meals':len(week),
-            'today_meals':today_plan,'missing_alerts':audit['warnings'][:8],
-            'expired_or_unsafe':expired,'expiring_soon':expiring,
-            'shopping_count':len(audit['shopping'])}
+        stock = stock_list(c)
+        recipes_data = recipe_list(c)
+        week = plans(c, today, 7)
+
+        today_plan = [
+            meal
+            for meal in week
+            if meal["meal_date"] == today.isoformat()
+        ]
+
+        stock_by_id = {
+            item["id"]: item for item in stock
+        }
+
+        batches = [
+            dict(row)
+            for row in c.execute(
+                """
+                SELECT *
+                FROM stock_batches
+                WHERE quantity>0
+                """
+            )
+        ]
+
+    audit = audit_meals(
+        week,
+        {r["id"]: r for r in recipes_data},
+        planning_stock(stock),
+    )
+
+    expired = []
+    expiring = []
+
+    for batch in batches:
+        ingredient = stock_by_id.get(batch["stock_id"])
+
+        if ingredient is None:
+            continue
+
+        details = {
+            **ingredient,
+            "batch_id": batch["id"],
+            "quantity": batch["quantity"],
+            "expiry_date": batch["expiry_date"],
+            "date_type": batch["date_type"],
+            "date_source": batch["date_source"],
+        }
+
+        if not batch_is_usable(ingredient, batch, today):
+            expired.append({
+                **details,
+                "usable": False,
+            })
+            continue
+
+        if batch["expiry_date"]:
+            expiry = date.fromisoformat(
+                batch["expiry_date"]
+            )
+
+            if today <= expiry <= today + timedelta(days=3):
+                expiring.append({
+                    **details,
+                    "usable": True,
+                })
+
+    return {
+        "household": settings(),
+        "stock_items": len(stock),
+        "planned_meals": len(week),
+        "today_meals": today_plan,
+        "missing_alerts": audit["warnings"][:8],
+        "expired_or_unsafe": expired,
+        "expiring_soon": expiring,
+        "shopping_count": len(audit["shopping"]),
+    }
 
 
-# During development Vite serves the React frontend on http://127.0.0.1:5173.
-# If a production build exists, FastAPI can also serve its static assets.
-DIST_DIR = APP_DIR / 'frontend' / 'dist'
+# ==========================================
+# REACT FRONTEND
+# ==========================================
+
+DIST_DIR = APP_DIR / "frontend" / "dist"
+
 if DIST_DIR.is_dir():
-    app.mount('/assets', StaticFiles(directory=DIST_DIR / 'assets'), name='react-assets')
+    app.mount(
+        "/assets",
+        StaticFiles(
+            directory=DIST_DIR / "assets"
+        ),
+        name="react-assets",
+    )
 
 
-@app.get('/')
+@app.get("/")
 def index():
-    built_index = DIST_DIR / 'index.html'
+    built_index = DIST_DIR / "index.html"
+
     if built_index.is_file():
         return FileResponse(built_index)
-    return JSONResponse({'message':'KitchenSync FastAPI running. Open http://127.0.0.1:5173 for the React UI.',
-                         'api_docs':'/docs'})
+
+    return JSONResponse({
+        "message": (
+            "KitchenSync FastAPI running. "
+            "Open http://127.0.0.1:5173 for the React UI."
+        ),
+        "api_docs": "/docs",
+    })
