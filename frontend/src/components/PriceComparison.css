@@ -1,0 +1,42 @@
+.ks-price{margin:25px 0 0;color:#284936;background:#f7fbf7;border:1px solid #e2efe6;border-radius:22px;padding:20px;box-shadow:5px 5px 13px #e5ede5,-4px -4px 11px #fff}
+.ks-price-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:17px}
+.ks-price-heading-icon{width:43px;height:43px;border-radius:15px;background:#e3f2e7;color:#2c8058;display:grid;place-items:center;flex:none}
+.ks-price-eyebrow{font-size:10px;letter-spacing:.12em;color:#578e6a;font-weight:800}
+.ks-price-heading h2{font-size:20px;font-weight:850;line-height:1.2;margin:4px 0 6px}
+.ks-price-heading p{font-size:12px;color:#718b79;line-height:1.6}
+.ks-price-picker,.ks-price-fields label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:750;color:#477151}
+.ks-price-picker select,.ks-price-fields select,.ks-price-fields input{width:100%;min-height:43px;padding:9px 11px;border:1px solid #cbded0;border-radius:11px;background:#fff;color:#284936;font-size:14px}
+.ks-price-picker select:focus-visible,.ks-price-fields select:focus-visible,.ks-price-fields input:focus-visible,.ks-price button:focus-visible{outline:3px solid #85bd97;outline-offset:2px}
+.ks-price-context{font-size:12px;color:#6f8978;margin:11px 0 14px;line-height:1.5}
+.ks-price-form{padding:15px;background:#ecf6ee;border:1px solid #d6e8d8;border-radius:17px}
+.ks-price-form h3{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;margin:0 0 13px}
+.ks-price-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.ks-price-form-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:15px}
+.ks-price-primary,.ks-price-quiet{min-height:43px;border-radius:12px;padding:10px 14px;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+.ks-price-primary{background:#317f59;color:#fff;border:1px solid #317f59}
+.ks-price-primary:hover{background:#276b4b}
+.ks-price-quiet{background:#fff;color:#347756;border:1px solid #cfe2d2}
+.ks-price-notice,.ks-price-error{display:flex;align-items:center;gap:8px;font-size:12px;line-height:1.5;padding:11px 13px;border-radius:12px;margin-top:12px}
+.ks-price-notice{color:#276d48;background:#e3f4e9;border:1px solid #c5e5d0}
+.ks-price-error{color:#a53730;background:#fff2ef;border:1px solid #f1cecb}
+.ks-price-results-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:23px 0 12px}
+.ks-price-results-head h3{font-size:15px;font-weight:800}
+.ks-price-results-head small{font-size:11px;color:#799385}
+.ks-price-empty{border-radius:13px;border:1px dashed #c9dfce;background:#fcfefc;padding:22px;color:#78917f;font-size:12px;line-height:1.6}
+.ks-price-offers{display:grid;gap:10px}
+.ks-price-offer{border-radius:15px;border:1px solid #e1ebe3;background:#fff;padding:14px}
+.ks-price-offer-best{border-color:#a9d3b5;background:#f8fdfa}
+.ks-price-offer-main{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ks-price-offer-store{font-size:14px;font-weight:850;overflow-wrap:anywhere}
+.ks-price-source{font-size:10px;color:#83958a;display:inline-block;margin-top:3px}
+.ks-price-best{font-size:10px;font-weight:800;color:#1d7045;background:#e1f2e6;border-radius:99px;padding:5px 9px}
+.ks-price-offer-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.ks-price-offer-values>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ks-price-offer-values small{color:#849889;font-size:10px}
+.ks-price-offer-values strong{font-size:13px;overflow-wrap:anywhere}
+.ks-price-offer-values .ks-price-rate{color:#257a52;font-weight:850}
+.ks-price-offer-actions{display:flex;gap:13px;margin-top:12px;padding-top:10px;border-top:1px solid #eaf0e9}
+.ks-price-offer-actions button{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:750;color:#4c7d5b;min-height:32px;cursor:pointer}
+.ks-price-offer-actions button:last-child{color:#aa5651}
+.ks-price-disclaimer{font-size:11px;color:#758c7a;line-height:1.65;margin-top:15px}
+@media(max-width:540px){.ks-price{padding:15px}.ks-price-fields{grid-template-columns:1fr}.ks-price-offer-values{grid-template-columns:repeat(2,minmax(0,1fr))}.ks-price-offer-values>div:last-child{grid-column:1/-1}.ks-price-form-actions .ks-price-primary{width:100%}}

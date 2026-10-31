@@ -1,0 +1,59 @@
+.ks-shopping { color:#244936; max-width:1040px; margin:0 auto; padding:0 0 96px; }
+.ks-shopping-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; }
+.ks-shopping-eyebrow { display:block; color:#498665; font-weight:800; letter-spacing:.12em; font-size:11px; }
+.ks-shopping-header h1 { font-size:clamp(25px,5vw,34px); font-weight:850; line-height:1.16; letter-spacing:-.04em; margin:6px 0 8px; }
+.ks-shopping-header p, .ks-shopping-toolbar p { font-size:13px; color:#769382; line-height:1.5; }
+.ks-shopping-icon { display:grid; place-items:center; flex:none; width:52px; height:52px; border-radius:18px; background:#eaf5ec; color:#347f57; box-shadow:6px 6px 14px #d8e4d9,-5px -5px 15px #fff; }
+.ks-shopping-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:22px; }
+.ks-shopping-stat { min-width:0; background:#f7fbf7; padding:17px 13px; border-radius:19px; box-shadow:5px 5px 12px #e0e9e0,-4px -4px 11px #fff; display:flex; flex-direction:column; gap:5px; }
+.ks-shopping-stat strong { font-size:26px; color:#28724f; line-height:1.1; }
+.ks-shopping-stat span { font-size:11px; color:#75917e; font-weight:650; }
+.ks-shopping-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.ks-shopping-toolbar h2 { font-size:18px; font-weight:800; }
+.ks-shopping-toolbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ks-shopping-btn { display:inline-flex; justify-content:center; align-items:center; gap:7px; min-height:42px; border-radius:13px; padding:9px 13px; font-size:12px; font-weight:800; transition:transform .15s,filter .15s; cursor:pointer; }
+.ks-shopping-btn:not(:disabled):active { transform:translateY(1px); }
+.ks-shopping-btn:disabled { opacity:.5; cursor:not-allowed; }
+.ks-shopping-btn-light { background:#eef6ef; color:#357b53; border:1px solid #ddebe0; }
+.ks-shopping-btn-primary { background:#317e58; color:#fff; border:1px solid #317e58; }
+.ks-shopping-btn-primary:hover:not(:disabled) { filter:brightness(1.08); }
+.ks-shopping-list { display:grid; gap:12px; }
+.ks-shopping-item { min-width:0; padding:17px; background:#f9fcf8; border:1px solid #e4efe6; border-radius:20px; box-shadow:5px 5px 13px #e5eee5,-4px -4px 13px #fff; }
+.ks-shopping-item-checked { border-color:#b5d9be; background:#f4faf5; }
+.ks-shopping-item-main { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.ks-shopping-check { display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; }
+.ks-shopping-check input { position:absolute; opacity:0; width:1px; height:1px; }
+.ks-shopping-check-mark { display:grid; place-items:center; height:23px; width:23px; flex:none; border:2px solid #9bbba4; border-radius:8px; background:white; color:white; }
+.ks-shopping-check input:checked + .ks-shopping-check-mark { background:#38835b; border-color:#38835b; }
+.ks-shopping-check input:focus-visible + .ks-shopping-check-mark { outline:3px solid #87bc9a; outline-offset:2px; }
+.ks-shopping-name { font-size:15px; font-weight:800; overflow-wrap:anywhere; }
+.ks-shopping-item-checked .ks-shopping-name { text-decoration:line-through; color:#708a77; }
+.ks-shopping-quantity { display:flex; flex-direction:column; align-items:flex-end; flex:none; }
+.ks-shopping-quantity strong { color:#98621f; font-size:15px; }
+.ks-shopping-quantity small { color:#9caa9e; font-size:11px; }
+.ks-shopping-subline { display:flex; flex-wrap:wrap; gap:4px 15px; color:#809686; font-size:11px; margin:11px 0 13px 34px; }
+.ks-shopping-item-actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:9px; border-top:1px solid #e5eee5; padding-top:12px; }
+.ks-shopping-checked-label { font-size:11px; color:#829988; }
+.ks-shopping-purchase { background:#edf6ee; padding:15px; border-radius:16px; margin-top:14px; border:1px solid #d5e9d9; }
+.ks-shopping-help, .ks-shopping-helper-text { font-size:12px; line-height:1.55; color:#5f7e69; }
+.ks-shopping-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:12px 0 8px; }
+.ks-shopping-form-grid label { display:flex; flex-direction:column; gap:7px; font-size:12px; color:#456f51; font-weight:750; }
+.ks-shopping-form-grid input, .ks-shopping-form-grid select { width:100%; min-height:43px; border:1px solid #c8dfce; background:#fff; border-radius:11px; padding:8px 11px; color:#294b36; font-size:14px; }
+.ks-shopping-form-grid input:focus-visible, .ks-shopping-form-grid select:focus-visible { outline:2px solid #85bb97; outline-offset:2px; }
+.ks-shopping-submit { margin-top:13px; width:100%; }
+.ks-shopping-feedback { display:flex; align-items:center; gap:10px; border-radius:12px; padding:12px 14px; margin:0 0 16px; font-size:12px; line-height:1.4; }
+.ks-shopping-feedback button { margin-left:auto; flex:none; }
+.ks-shopping-error { color:#a43430; border:1px solid #f0d0cb; background:#fff2ef; }
+.ks-shopping-success { color:#236846; border:1px solid #c4e5d2; background:#e9f8ef; }
+.ks-shopping-empty { text-align:center; background:#f5faf5; padding:45px 21px; border-radius:20px; display:grid; justify-items:center; gap:11px; color:#458660; }
+.ks-shopping-empty h3 { color:#28513a; font-size:18px; font-weight:800; }
+.ks-shopping-empty p { max-width:430px; font-size:13px; color:#819785; }
+.ks-shopping-footer { display:flex; align-items:flex-start; gap:11px; padding:15px; margin-top:18px; border-radius:16px; background:#e8f4ea; color:#497a57; font-size:11px; line-height:1.55; }
+.ks-shopping-footer svg { flex:none; }
+.ks-shopping-price-note { margin-top:15px; color:#8a9e8e; font-size:11px; text-align:center; }
+@media(max-width:480px) { .ks-shopping-stats { gap:8px; } .ks-shopping-stat { padding:14px 10px; } .ks-shopping-stat strong { font-size:23px; } .ks-shopping-form-grid { grid-template-columns:1fr; } .ks-shopping-header p { max-width:260px; } .ks-shopping-item { padding:14px; } .ks-shopping-checked-label { width:100%; } .ks-shopping-item-actions .ks-shopping-btn { width:100%; } }
+@media(prefers-reduced-motion:reduce) { .ks-shopping-btn { transition:none; } }
+
+@keyframes ks-shopping-spin { to { transform:rotate(360deg); } }
+.ks-shopping-spin { animation:ks-shopping-spin 1s linear infinite; }
+@media(prefers-reduced-motion:reduce) { .ks-shopping-spin { animation:none; } }

@@ -1,3 +1,4 @@
+import MobileShopping from "./components/MobileShopping.jsx";
 import MobileBottomNav from "./components/MobileBottomNav";
 import MobileDashboard from "./components/MobileDashboard.jsx";
 import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
@@ -154,7 +155,7 @@ export default function App() {
     setStockDraft(item ? { ...item, expiry_date: item.expiry_date || '', is_leftover: Boolean(item.is_leftover), prepared_at: (item.prepared_at || '').slice(0, 16), storage: item.storage || '' } : { ...DEFAULT_STOCK });
     setModal({ type: 'stock', item });
   };
-  
+
 const saveStock = event => {
   event.preventDefault();
 
@@ -254,7 +255,7 @@ const saveStock = event => {
           </>}
 
           {section === 'planner' && <>
-            
+
             {/* Mobile Meal Planner */}
             <div className="md:hidden">
               <MobileMealPlanner
@@ -313,10 +314,10 @@ const saveStock = event => {
             </div>
           </>}
           {section === 'inventory' && <>
-            
+
             {/* Mobile Pantry Overview */}
             <div className="md:hidden">
-              
+
               <MobilePantry
                 inventory={data.inventory}
                 onManage={() =>
@@ -326,8 +327,8 @@ const saveStock = event => {
                       block: "start"
                     })
                 }
-                
-                
+
+
             onScanConfirmed={(result) => {
               setStockDraft({
                 ...DEFAULT_STOCK,
@@ -361,11 +362,15 @@ const saveStock = event => {
             <p className="text-xs text-[#899b8c] mt-4">Note: Leftover storage checks are conservative demo rules, not a guarantee of food safety. The app never assumes unrefrigerated overnight rice is safe.</p>
             </div>
           </>}
-          {section === 'shopping' && <>
-            <SectionHeading eyebrow="Shop with a plan" title="Your smart shopping list" description="Shortages are calculated from all currently planned meals in the displayed week." action={<Button variant="outline" onClick={() => { const lines = data.audit.shopping.map(i => `${i.name}: ${displayAmount(i.missing, i.unit)}`); navigator.clipboard?.writeText(lines.join('\n')).then(() => notify('Shopping list copied')).catch(() => notify('Clipboard unavailable', true)) }}><Clipboard size={16} /> Copy list</Button>} />
-            <div className="grid lg:grid-cols-5 gap-5"><div className="k-card lg:col-span-3 p-5 md:p-6"><div className="flex justify-between gap-3 items-center mb-4"><h3 className="font-bold text-lg">Ingredients to buy</h3><Tag tone="orange">{data.audit.shopping.length} needed</Tag></div>{data.audit.shopping.length ? <div className="space-y-3">{data.audit.shopping.map(item => <div className="flex justify-between gap-3 items-center p-4 rounded-xl border border-[#edf0ea]" key={item.name}><div className="flex gap-3 items-center"><div className="w-9 h-9 rounded-xl bg-[#f3f7f0] grid place-items-center"><ShoppingBasket size={17} className="text-[#56966b]" /></div><div><strong className="text-sm">{item.name}</strong><p className="text-xs text-[#9aab9c]">Required: {displayAmount(item.required, item.unit)}</p></div></div><strong className="text-[#b27a30]">{displayAmount(item.missing, item.unit)}</strong></div>)}</div> : <EmptyState icon={CheckCircle2}>All ingredients for planned meals are available.</EmptyState>}</div>
-              <div className="lg:col-span-2 space-y-4"><div className="k-card p-5"><h3 className="font-bold mb-2">Quick-commerce hand-off</h3><p className="text-sm leading-relaxed text-[#879689] mb-4">Copy your list and paste it into your preferred grocery service. Automatic cart checkout is not integrated yet.</p><Button className="w-full" variant="light" onClick={() => { const list = data.audit.shopping.map(i => `${i.name} ${displayAmount(i.missing, i.unit)}`).join('\n'); navigator.clipboard?.writeText(list).then(() => notify('Shopping list copied — open your preferred grocery app')).catch(() => notify('Clipboard unavailable', true)) }}><Clipboard size={16} /> Copy list for grocery app</Button></div><div className="k-card p-5"><div className="flex gap-3 items-center font-bold mb-2"><TrendingDown size={19} className="text-[#48946b]" /> Live price comparison</div><Tag tone="orange">Coming in future stage</Tag><p className="text-xs leading-relaxed text-[#89968b] mt-3">We will only show live prices when a provider or verified data source is connected.</p></div></div></div>
-          </>}
+          {section === 'shopping' && (
+            <MobileShopping
+              shopping={data.audit.shopping}
+              inventory={data.inventory}
+              weekStart={dateISO(weekStart)}
+              onRefresh={refresh}
+              onNotify={notify}
+            />
+          )}
           {section === 'assistant' && <>
             <SectionHeading eyebrow="Your recipe companion" title="What should we cook today?" description="Tell us what you're craving. The current demo recommends from eight local recipes using your pantry stock." />
             <div className="k-card p-5 md:p-7 max-w-4xl"><div className="flex gap-3 items-center mb-4"><div className="bg-[#e9f4ed] rounded-xl p-3 text-[#2c8764]"><Bot size={24} /></div><div><h3 className="font-bold">KitchenSync Recipe Finder</h3><p className="text-xs text-[#8b9b8e]">Offline stock-aware ranking · Not yet a connected LLM</p></div></div><form onSubmit={e => { e.preventDefault(); handleSuggestions(craving) }} className="flex flex-col sm:flex-row gap-3"><input className="k-field flex-1" value={craving} onChange={e => setCraving(e.target.value)} placeholder="e.g. something spicy, quick dinner, rice..." /><Button disabled={busy} type="submit"><Sparkles size={17} /> Find recipes</Button></form><div className="flex gap-2 flex-wrap mt-4">{['spicy', 'quick', 'breakfast', 'rice', 'leftovers'].map(tag => <button key={tag} onClick={() => { setCraving(tag); handleSuggestions(tag) }} className="rounded-full bg-[#f1f7ee] text-[#527e60] px-3 py-1.5 text-xs font-semibold hover:bg-[#e5f1e3]">{tag}</button>)}</div>
@@ -382,7 +387,7 @@ const saveStock = event => {
       <footer className="text-center text-[11px] text-[#9aab9c] px-6 pb-6">KitchenSync MVP · Built for learning and hackathon demonstration · Sample recipe nutrition is approximate</footer>
     </div>
     {notice && <div className={`fixed z-[100] bottom-5 right-5 max-w-md shadow-xl px-5 py-4 rounded-xl text-sm font-semibold text-white ${notice.bad ? 'bg-[#bc5353]' : 'bg-[#206b51]'}`} role="status">{notice.message}</div>}
-    
+
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav
         section={section}
@@ -391,8 +396,8 @@ const saveStock = event => {
 
 
 
-    
-    
+
+
     {modal?.type === 'recipe' && (
       <MobileRecipeDetail
         recipe={modal.recipe}
