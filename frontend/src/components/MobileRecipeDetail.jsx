@@ -1,4 +1,6 @@
 import TimedCookingGuide from "./TimedCookingGuide";
+import { getCookingTimeline } from "../data/cookingTimelines";
+
 import { useEffect, useRef, useState } from "react";
 import {
   X, Clock3, UsersRound, Flame, ChefHat,
@@ -28,6 +30,8 @@ export default function MobileRecipeDetail({
   const [listening, setListening] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [timedOpen, setTimedOpen] = useState(false);
+
+  const cookingTimeline = getCookingTimeline(recipe);
 
   const stepRef = useRef(0);
   const voiceRef = useRef(false);
@@ -294,7 +298,7 @@ export default function MobileRecipeDetail({
             {/* Serving counter */}
             <div className="kscook-serving-card">
                 
-                {/paneer.*masala/i.test(recipe.name) && (
+                {cookingTimeline && (
                 <button
                     type="button"
                     className="w-full mb-5 flex items-center justify-center gap-3 rounded-2xl bg-[#287b50] px-4 py-4 text-white font-bold shadow-md"
@@ -504,10 +508,11 @@ export default function MobileRecipeDetail({
             <ChevronRight size={20} />
           </button>
         </footer>
-
-        {timedOpen && (
+        
+        {timedOpen && cookingTimeline && (
         <TimedCookingGuide
             recipeName={recipe.name}
+            timeline={cookingTimeline}
             onClose={() => setTimedOpen(false)}
         />
         )}

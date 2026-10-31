@@ -19,97 +19,7 @@ import "./TimedCookingGuide.css";
 
 // DEMO DATA: Replace with validated recipe-specific
 // cooking timelines before production use.
-const DEMO_TIMELINE = [
-  {
-    title: "Heat the oil",
-    instruction:
-      "Place a pan on medium heat and add the measured oil.",
-    durationSeconds: 60,
-    reminders: [],
-    question:
-      "Is the oil gently heated and ready for the onions?",
-    hint:
-      "The oil should look slightly fluid and shimmer gently. Avoid letting it smoke."
-  },
-  {
-    title: "Cook the onions",
-    instruction:
-      "Add the chopped onions and stir occasionally.",
-    durationSeconds: 180,
-    reminders: [
-      {
-        at: 60,
-        message:
-          "Stir the onions so they cook evenly."
-      },
-      {
-        at: 120,
-        message:
-          "Check that the onions are not sticking or burning."
-      }
-    ],
-    question:
-      "Have the onions softened and turned light golden?",
-    hint:
-      "Look for soft onions with light golden edges. If they are darkening too quickly, reduce the heat."
-  },
-  {
-    title: "Add tomatoes and spices",
-    instruction:
-      "Add the prepared tomatoes and measured spices. Mix them into the onions.",
-    durationSeconds: 180,
-    reminders: [
-      {
-        at: 90,
-        message:
-          "Stir the tomato mixture and check the bottom of the pan."
-      }
-    ],
-    question:
-      "Have the tomatoes softened into the masala?",
-    hint:
-      "The tomatoes should be soft and easy to mash. Continue cooking gently if they are still firm."
-  },
-  {
-    title: "Simmer the gravy",
-    instruction:
-      "Add the measured water from your recipe and bring the gravy to a gentle simmer.",
-    durationSeconds: 240,
-    reminders: [
-      {
-        at: 90,
-        message:
-          "Stir the gravy gently."
-      },
-      {
-        at: 180,
-        message:
-          "Check the gravy consistency and stir if necessary."
-      }
-    ],
-    question:
-      "Has the gravy reached the consistency you want?",
-    hint:
-      "The gravy should be evenly mixed and gently simmering. Follow the recipe's measurements; avoid adding unnecessary water."
-  },
-  {
-    title: "Add the paneer",
-    instruction:
-      "Add the prepared paneer cubes to the gravy and stir gently.",
-    durationSeconds: 180,
-    reminders: [
-      {
-        at: 90,
-        message:
-          "Gently stir the paneer so it is coated in the gravy."
-      }
-    ],
-    question:
-      "Is the paneer heated through and the gravy ready?",
-    hint:
-      "Check that the paneer is heated through and the gravy is gently simmering. Do not rely on the timer alone."
-  }
-];
+
 
 const RETRY_SECONDS = 60;
 
@@ -122,14 +32,17 @@ function formatTime(seconds) {
   ).padStart(2, "0")}`;
 }
 
+
 export default function TimedCookingGuide({
-  recipeName = "Paneer Masala",
+  recipeName = "Your Recipe",
+  timeline,
   onClose
 }) {
+
   const [stepIndex, setStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [timeLimit, setTimeLimit] = useState(
-    DEMO_TIMELINE[0].durationSeconds
+    timeline[0].durationSeconds
   );
   const [status, setStatus] = useState("idle");
   const [muted, setMuted] = useState(false);
@@ -140,7 +53,7 @@ export default function TimedCookingGuide({
   const firedReminders = useRef(new Set());
   const recognitionRef = useRef(null);
 
-  const current = DEMO_TIMELINE[stepIndex];
+  
   const remaining = Math.max(0, timeLimit - elapsed);
   const progress =
     timeLimit > 0
@@ -189,11 +102,11 @@ export default function TimedCookingGuide({
     firedReminders.current.clear();
     setStepIndex(0);
     setElapsed(0);
-    setTimeLimit(DEMO_TIMELINE[0].durationSeconds);
+    setTimeLimit(timeline[0].durationSeconds);
     setNotice("");
     setStatus("running");
 
-    speak(DEMO_TIMELINE[0].instruction);
+    speak(timeline[0].instruction);
   }
 
   function advance() {
@@ -204,7 +117,7 @@ export default function TimedCookingGuide({
     firedReminders.current.clear();
     setNotice("");
 
-    if (nextIndex >= DEMO_TIMELINE.length) {
+    if (nextIndex >= timeline.length) {
       setStatus("done");
       speak(
         "All guided cooking steps are complete. Check that the food is properly cooked and safe before serving."
@@ -212,7 +125,7 @@ export default function TimedCookingGuide({
       return;
     }
 
-    const nextStep = DEMO_TIMELINE[nextIndex];
+    const nextStep = timeline[nextIndex];
 
     setStepIndex(nextIndex);
     setElapsed(0);
@@ -458,7 +371,7 @@ export default function TimedCookingGuide({
           <div className="ktc-card">
             <div className="ktc-step-label">
               Step {stepIndex + 1} of{" "}
-              {DEMO_TIMELINE.length}
+              {timeline.length}
             </div>
 
             <h1>{current.title}</h1>
@@ -608,7 +521,7 @@ export default function TimedCookingGuide({
               Cooking timeline
             </h2>
 
-            {DEMO_TIMELINE.map((item, index) => (
+            {timeline.map((item, index) => (
               <div
                 key={item.title}
                 className={

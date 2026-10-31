@@ -3,6 +3,7 @@ import MobileDashboard from "./components/MobileDashboard.jsx";
 import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
 import MobileRecipeLibrary from "./components/MobileRecipeLibrary.jsx";
 import MobileRecipeDetail from "./components/MobileRecipeDetail.jsx";
+import MobilePantry from "./components/MobilePantry.jsx";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -258,10 +259,45 @@ export default function App() {
             </div>
           </>}
           {section === 'inventory' && <>
+            
+            {/* Mobile Pantry Overview */}
+            <div className="md:hidden">
+              
+              <MobilePantry
+                inventory={data.inventory}
+                onManage={() =>
+                  document.getElementById("inventory-controls")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start"
+                    })
+                }
+                onScanConfirmed={(result) => {
+                  setStockDraft({
+                    ...DEFAULT_STOCK,
+                    name: result.name,
+                    expiry_date: result.expiry_date,
+                    quantity: 0,
+                    unit: "g"
+                  });
+
+                  setModal({
+                    type: "stock",
+                    item: null
+                  });
+                }}
+              />
+
+            </div>
+
+            {/* Existing Inventory Controls */}
+            <div id="inventory-controls" className="scroll-mt-6">
+
             <SectionHeading eyebrow="Pantry & freshness" title="My kitchen inventory" description="Keep ingredients accurate. Quantities are stored in grams, millilitres or pieces; expiry warnings appear automatically." action={<Button onClick={() => openStock(null)}><Plus size={17} /> Add ingredient</Button>} />
             <div className="k-card p-4 mb-5 flex flex-wrap gap-3 items-center justify-between"><div className="relative w-full sm:max-w-sm"><Search size={18} className="absolute top-3 left-3.5 text-[#9ba99c]" /><input value={stockSearch} onChange={e => setStockSearch(e.target.value)} className="k-field pl-11" placeholder="Find an ingredient..." /></div><div className="text-xs text-[#8fa092]">{data.inventory.length} ingredients · Includes manually entered stock</div></div>
             <div className="k-card overflow-x-auto k-scroll"><table className="w-full text-sm text-left min-w-[620px]"><thead className="bg-[#f7faf5] text-[#819386] text-xs"><tr><th className="p-4 font-semibold">Ingredient</th><th className="p-4 font-semibold">Quantity</th><th className="p-4 font-semibold">Expiry</th><th className="p-4 font-semibold">Status</th><th className="p-4 font-semibold text-right">Actions</th></tr></thead><tbody>{stockFiltered.map(item => <tr key={item.id} className="border-t border-[#edf1eb] hover:bg-[#fcfefa]"><td className="p-4"><strong>{item.name}</strong>{Boolean(item.is_leftover) && <div className="text-xs text-[#aa8c49] mt-1">Cooked leftover</div>}</td><td className="p-4 font-semibold">{displayAmount(item.quantity, item.unit)}</td><td className="p-4 text-[#819486]">{item.expiry_date ? prettyDate(item.expiry_date) : 'Not set'}</td><td className="p-4"><Tag tone={!item.usable ? 'red' : item.quantity <= 0 ? 'orange' : 'green'}>{!item.usable ? 'Review / unsafe' : item.quantity <= 0 ? 'Out of stock' : 'Available'}</Tag></td><td className="p-4"><div className="flex justify-end gap-2"><button title="Edit" className="p-2 text-[#438866] bg-[#eef6ef] rounded-lg" onClick={() => openStock(item)}><Pencil size={16} /></button><button title="Delete" className="p-2 text-red-600 bg-red-50 rounded-lg" onClick={() => { if (window.confirm(`Delete ${item.name} from pantry?`)) run(() => api(`/inventory/${item.id}`, { method: 'DELETE' }), `${item.name} removed`) }}><Trash2 size={16} /></button></div></td></tr>)}</tbody></table>{!stockFiltered.length && <EmptyState icon={Package}>No matching ingredients.</EmptyState>}</div>
             <p className="text-xs text-[#899b8c] mt-4">Note: Leftover storage checks are conservative demo rules, not a guarantee of food safety. The app never assumes unrefrigerated overnight rice is safe.</p>
+            </div>
           </>}
           {section === 'shopping' && <>
             <SectionHeading eyebrow="Shop with a plan" title="Your smart shopping list" description="Shortages are calculated from all currently planned meals in the displayed week." action={<Button variant="outline" onClick={() => { const lines = data.audit.shopping.map(i => `${i.name}: ${displayAmount(i.missing, i.unit)}`); navigator.clipboard?.writeText(lines.join('\n')).then(() => notify('Shopping list copied')).catch(() => notify('Clipboard unavailable', true)) }}><Clipboard size={16} /> Copy list</Button>} />
