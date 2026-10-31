@@ -44,7 +44,7 @@ def extract_recipe(url):
     try:
         response = requests.get(
             url,
-            timeout=15,
+            timeout=(3, 7),
             headers={"User-Agent": "Mozilla/5.0"}
         )
 

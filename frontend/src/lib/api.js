@@ -33,6 +33,13 @@ export function prettyDate(iso, options = {weekday:'short', day:'numeric', month
 export const num = value => Number(Number(value || 0).toFixed(2)).toLocaleString('en-IN');
 export const displayAmount = (qty,unit) => `${num(qty)} ${unit}`;
 export function scaleRecipe(recipe, eaters) {
-  return recipe.ingredients.map(([name,quantity,unit]) => ({name,quantity: Math.round((quantity*eaters/recipe.base_servings)*100)/100,unit}));
+  return recipe.ingredients.map(([name, quantity, unit]) => ({
+    name,
+    quantity: Math.round(
+      (quantity * eaters / recipe.base_servings) * 100
+    ) / 100,
+    unit
+  }));
 }
+
 export const recipeIcon = recipe => /poha|upma/i.test(recipe?.name||'')?'🥣':/paratha|roti/i.test(recipe?.name||'')?'🫓':/rice|pulao/i.test(recipe?.name||'')?'🍚':/paneer/i.test(recipe?.name||'')?'🧀':'🍛';

@@ -12,7 +12,7 @@ def get_recipe_recommendations(configuration):
     seen_urls = set()
 
     # Step 1: Search separately for each dish
-    for query in queries:
+    for query in queries[:2]:
 
         print("\nSearching for:", query)
 
@@ -58,7 +58,7 @@ def get_recipe_recommendations(configuration):
     valid_recipes = []
 
     # Step 2: Extract and validate each unique result
-    for result in all_search_results:
+    for result in all_search_results[:3]:
 
         url = result.get("url")
 

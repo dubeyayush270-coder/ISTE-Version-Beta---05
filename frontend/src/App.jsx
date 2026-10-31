@@ -5,6 +5,7 @@ import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
 import MobileRecipeLibrary from "./components/MobileRecipeLibrary.jsx";
 import MobileRecipeDetail from "./components/MobileRecipeDetail.jsx";
 import MobilePantry from "./components/MobilePantry.jsx";
+import AIRecipeFinder from "./components/AIRecipeFinder.jsx";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -373,6 +374,7 @@ const saveStock = event => {
             />
           )}
           {section === 'assistant' && <>
+            <AIRecipeFinder />
             <SectionHeading eyebrow="Your recipe companion" title="What should we cook today?" description="Tell us what you're craving. The current demo recommends from eight local recipes using your pantry stock." />
             <div className="k-card p-5 md:p-7 max-w-4xl"><div className="flex gap-3 items-center mb-4"><div className="bg-[#e9f4ed] rounded-xl p-3 text-[#2c8764]"><Bot size={24} /></div><div><h3 className="font-bold">KitchenSync Recipe Finder</h3><p className="text-xs text-[#8b9b8e]">Offline stock-aware ranking · Not yet a connected LLM</p></div></div><form onSubmit={e => { e.preventDefault(); handleSuggestions(craving) }} className="flex flex-col sm:flex-row gap-3"><input className="k-field flex-1" value={craving} onChange={e => setCraving(e.target.value)} placeholder="e.g. something spicy, quick dinner, rice..." /><Button disabled={busy} type="submit"><Sparkles size={17} /> Find recipes</Button></form><div className="flex gap-2 flex-wrap mt-4">{['spicy', 'quick', 'breakfast', 'rice', 'leftovers'].map(tag => <button key={tag} onClick={() => { setCraving(tag); handleSuggestions(tag) }} className="rounded-full bg-[#f1f7ee] text-[#527e60] px-3 py-1.5 text-xs font-semibold hover:bg-[#e5f1e3]">{tag}</button>)}</div>
               {suggestions && <div className="mt-7"><h4 className="font-bold mb-3">Recipes to consider</h4><div className="space-y-3">{suggestions.results.map(item => <div key={item.recipe.id} className="flex gap-3 items-center p-4 rounded-xl border border-[#e5eee4]"><span className="text-3xl">{recipeIcon(item.recipe)}</span><div className="flex-1 min-w-0"><h5 className="font-bold text-sm">{item.recipe.name}</h5><p className="text-xs text-[#8da18f] mt-1">{item.covered}/{item.total} ingredients fully available for 2 people</p></div><Button variant="light" onClick={() => setModal({ type: 'recipe', recipe: item.recipe })}>View <ArrowRight size={14} /></Button></div>)}</div></div>}

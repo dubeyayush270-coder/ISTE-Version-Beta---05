@@ -17,10 +17,17 @@ from core import (
     stock_available,
 )
 from db import connection, init_db
+from AI.api_router import router as ai_router
+
 
 
 APP_DIR = Path(__file__).resolve().parent.parent
+
 app = FastAPI(title="KitchenSync API", version="0.3.0")
+
+# Register AI recipe recommendation endpoints
+app.include_router(ai_router)
+
 
 
 @app.on_event("startup")

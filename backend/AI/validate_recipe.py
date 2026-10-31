@@ -146,18 +146,17 @@ def validate_recipe(recipe, preferences):
                 "reason": "Recipe contains non-vegetarian ingredients",
                 "matched_ingredients": non_veg_items
             }
-
     # 4. Check excluded ingredients
-    excluded_ingredients = preferences.get("exclude", [])
+    excluded_ingredients = preferences.get("exclude", []) or []
 
     found_excluded = []
 
     for item in excluded_ingredients:
-
         pattern = r"\b" + re.escape(item.lower()) + r"\b"
 
-    if re.search(pattern, ingredient_text):
-        found_excluded.append(item)
+        if re.search(pattern, ingredient_text):
+            found_excluded.append(item)
+
 
     if found_excluded:
         return {
