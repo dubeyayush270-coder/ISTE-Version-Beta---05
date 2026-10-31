@@ -2,6 +2,7 @@
 """KitchenSync: household plans, recipes, batch inventory and cooking."""
 
 import json
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -29,6 +30,16 @@ from family_management import (
 APP_DIR = Path(__file__).resolve().parent.parent
 
 app = FastAPI(title="KitchenSync API", version="0.3.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://localhost",
+        "capacitor://localhost",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # Register AI recipe recommendation endpoints
 app.include_router(ai_router)
