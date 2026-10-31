@@ -22,7 +22,23 @@ const SECTIONS = [
   ['shopping', 'Shopping list', ShoppingBasket], ['assistant', 'Kitchen assistant', Bot],
 ];
 const MEALS = ['breakfast', 'lunch', 'dinner'];
-const DEFAULT_STOCK = { name: '', quantity: 0, unit: 'g', expiry_date: '', is_leftover: false, prepared_at: '', storage: '' };
+
+const DEFAULT_STOCK = {
+  name: "",
+  quantity: 0,
+  unit: "g",
+  expiry_date: "",
+  is_leftover: false,
+  prepared_at: "",
+  storage: "",
+
+  // Scanner metadata
+  date_type: "unknown",
+  date_source: "manual",
+  barcode: "",
+  purchase_date: "",
+};
+
 const CAPABILITIES = [
   ['Weekly meals', 'Available'], ['Recipe library', 'Available'], ['Per-meal serving count', 'Available'],
   ['Pantry management', 'Available'], ['Daily + weekly shortages', 'Available'], ['Missing-item alerts', 'Available'],
@@ -138,17 +154,55 @@ export default function App() {
     setStockDraft(item ? { ...item, expiry_date: item.expiry_date || '', is_leftover: Boolean(item.is_leftover), prepared_at: (item.prepared_at || '').slice(0, 16), storage: item.storage || '' } : { ...DEFAULT_STOCK });
     setModal({ type: 'stock', item });
   };
-  const saveStock = event => {
-    event.preventDefault();
-    const payload = {
-      ...stockDraft, quantity: Number(stockDraft.quantity), expiry_date: stockDraft.expiry_date || null,
-      prepared_at: stockDraft.is_leftover ? (stockDraft.prepared_at || null) : null,
-      storage: stockDraft.is_leftover ? (stockDraft.storage || null) : null
-    };
-    return run(() => api(modal.item ? `/inventory/${modal.item.id}` : '/inventory', {
-      method: modal.item ? 'PUT' : 'POST', body: JSON.stringify(payload)
-    }), modal.item ? 'Ingredient updated' : 'Ingredient added to pantry');
+  
+const saveStock = event => {
+  event.preventDefault();
+
+  const allowedDateTypes = [
+    "expiry",
+    "use_by",
+    "best_before",
+    "estimated",
+    "unknown"
+  ];
+
+  const payload = {
+    ...stockDraft,
+    name: stockDraft.name.trim(),
+    quantity: Number(stockDraft.quantity),
+    expiry_date: stockDraft.expiry_date || null,
+    prepared_at: stockDraft.is_leftover
+      ? (stockDraft.prepared_at || null)
+      : null,
+    storage: stockDraft.is_leftover
+      ? (stockDraft.storage || null)
+      : null,
+
+    // Preserve scanned metadata for the first batch.
+    date_type: allowedDateTypes.includes(stockDraft.date_type)
+      ? stockDraft.date_type
+      : "unknown",
+    date_source: stockDraft.date_source || "manual",
+    barcode: stockDraft.barcode || null,
+    purchase_date: stockDraft.purchase_date || null,
   };
+
+  return run(
+    () => api(
+      modal.item
+        ? `/inventory/${modal.item.id}`
+        : "/inventory",
+      {
+        method: modal.item ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
+    modal.item
+      ? "Ingredient updated"
+      : "Ingredient added to pantry"
+  );
+};
+
   const handleSuggestions = async (q) => {
     setBusy(true);
     try { setSuggestions(await api('/suggestions?craving=' + encodeURIComponent(q || ''))); }
@@ -272,20 +326,28 @@ export default function App() {
                       block: "start"
                     })
                 }
-                onScanConfirmed={(result) => {
-                  setStockDraft({
-                    ...DEFAULT_STOCK,
-                    name: result.name,
-                    expiry_date: result.expiry_date,
-                    quantity: 0,
-                    unit: "g"
-                  });
+                
+                
+            onScanConfirmed={(result) => {
+              setStockDraft({
+                ...DEFAULT_STOCK,
+                name: result.name || "",
+                expiry_date: result.expiry_date || "",
+                quantity: 0,
+                unit: "g",
 
-                  setModal({
-                    type: "stock",
-                    item: null
-                  });
-                }}
+                // Preserve scanned information
+                date_type: result.date_type || "unknown",
+                date_source: result.date_source || "user_confirmed",
+                barcode: result.barcode || "",
+                purchase_date: result.purchase_date || "",
+              });
+
+              setModal({
+                type: "stock",
+                item: null,
+              });
+            }}
               />
 
             </div>

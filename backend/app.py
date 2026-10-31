@@ -205,6 +205,7 @@ class HouseholdUpdate(BaseModel):
     household_size: int = Field(ge=1, le=30)
 
 
+
 class StockInput(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     quantity: float = Field(ge=0, le=1_000_000)
@@ -213,6 +214,13 @@ class StockInput(BaseModel):
     is_leftover: bool = False
     prepared_at: datetime | None = None
     storage: str | None = None
+
+    # Scanner metadata for the first purchase batch.
+    date_type: str = "unknown"
+    date_source: str = "manual"
+    barcode: str | None = None
+    purchase_date: date | None = None
+
 
 
 class BatchInput(BaseModel):
@@ -464,9 +472,17 @@ def delete_inventory_batch(item_id: int, batch_id: int):
     return {"ok": True}
 
 
+
 @app.post("/api/inventory", status_code=201)
 def add_inventory(data: StockInput):
     values = validate_stock(data)
+
+    # Validate scanned date type before modifying the database.
+    if data.date_type not in DATE_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid date type"
+        )
 
     with connection() as c:
         c.execute("BEGIN IMMEDIATE")
@@ -494,23 +510,37 @@ def add_inventory(data: StockInput):
 
         item_id = cursor.lastrowid
 
+        # Create the first purchase batch and preserve
+        # all metadata supplied by the scanner.
         c.execute(
             """
             INSERT INTO stock_batches(
-                stock_id, quantity, expiry_date,
-                date_type, date_source, storage
+                stock_id,
+                quantity,
+                expiry_date,
+                date_type,
+                date_source,
+                barcode,
+                purchase_date,
+                storage
             )
-            VALUES (?, ?, ?, 'unknown', 'manual', ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 item_id,
                 data.quantity,
                 values[3],
+                data.date_type,
+                data.date_source,
+                data.barcode,
+                data.purchase_date.isoformat()
+                if data.purchase_date else None,
                 data.storage,
             ),
         )
 
     return {"ok": True}
+
 
 
 @app.put("/api/inventory/{item_id}")
