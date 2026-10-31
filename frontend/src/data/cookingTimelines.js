@@ -141,5 +141,26 @@ export function getCookingTimeline(recipe) {
     return cookingTimelines.vegetablePoha;
   }
 
-  return null;
+  const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+
+  if (steps.length === 0) return null;
+
+    return steps
+    .filter(
+        (instruction) =>
+        typeof instruction === "string" && instruction.trim()
+    )
+    .map((instruction, index) => ({
+        title: `Step ${index + 1}`,
+        instruction: instruction.trim(),
+        durationSeconds: 120,
+        reminders: [
+        {
+            at: 60,
+            message: "Check your progress and follow the recipe instructions."
+        }
+        ],
+        question: "Have you finished this step?",
+        hint: "Confirm completion before moving to the next step."
+    }));
 }

@@ -322,13 +322,18 @@ const saveStock = event => {
               <MobilePantry
                 inventory={data.inventory}
                 dashboard={data.dashboard}
-                onManage={() =>
-                  document.getElementById("inventory-controls")
-                    ?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start"
-                    })
-                }
+                onManage={() => openStock(null)}
+                onEdit={(item) => openStock(item)}
+                onDelete={(item) => {
+                  if (window.confirm(`Delete ${item.name} from pantry?`)) {
+                    run(
+                      () => api(`/inventory/${item.id}`, {
+                        method: "DELETE",
+                      }),
+                      `${item.name} removed`
+                    );
+                  }
+                }}
 
 
             onScanConfirmed={(result) => {
@@ -356,7 +361,7 @@ const saveStock = event => {
             </div>
 
             {/* Existing Inventory Controls */}
-            <div id="inventory-controls" className="scroll-mt-6">
+            <div id="inventory-controls" className="hidden md:block scroll-mt-6">
 
             <SectionHeading eyebrow="Pantry & freshness" title="My kitchen inventory" description="Keep ingredients accurate. Quantities are stored in grams, millilitres or pieces; expiry warnings appear automatically." action={<Button onClick={() => openStock(null)}><Plus size={17} /> Add ingredient</Button>} />
             <div className="k-card p-4 mb-5 flex flex-wrap gap-3 items-center justify-between"><div className="relative w-full sm:max-w-sm"><Search size={18} className="absolute top-3 left-3.5 text-[#9ba99c]" /><input value={stockSearch} onChange={e => setStockSearch(e.target.value)} className="k-field pl-11" placeholder="Find an ingredient..." /></div><div className="text-xs text-[#8fa092]">{data.inventory.length} ingredients · Includes manually entered stock</div></div>
@@ -375,10 +380,17 @@ const saveStock = event => {
           )}
           {section === 'assistant' && <>
             <AIRecipeFinder />
+            <details className="mt-5 rounded-2xl border border-[#e1e9df] p-4">
+                <summary className="cursor-pointer font-semibold text-[#386749]">
+                  Offline Recipe Finder (Backup)
+                </summary>
+                <div className="mt-4">
             <SectionHeading eyebrow="Your recipe companion" title="What should we cook today?" description="Tell us what you're craving. The current demo recommends from eight local recipes using your pantry stock." />
             <div className="k-card p-5 md:p-7 max-w-4xl"><div className="flex gap-3 items-center mb-4"><div className="bg-[#e9f4ed] rounded-xl p-3 text-[#2c8764]"><Bot size={24} /></div><div><h3 className="font-bold">KitchenSync Recipe Finder</h3><p className="text-xs text-[#8b9b8e]">Offline stock-aware ranking · Not yet a connected LLM</p></div></div><form onSubmit={e => { e.preventDefault(); handleSuggestions(craving) }} className="flex flex-col sm:flex-row gap-3"><input className="k-field flex-1" value={craving} onChange={e => setCraving(e.target.value)} placeholder="e.g. something spicy, quick dinner, rice..." /><Button disabled={busy} type="submit"><Sparkles size={17} /> Find recipes</Button></form><div className="flex gap-2 flex-wrap mt-4">{['spicy', 'quick', 'breakfast', 'rice', 'leftovers'].map(tag => <button key={tag} onClick={() => { setCraving(tag); handleSuggestions(tag) }} className="rounded-full bg-[#f1f7ee] text-[#527e60] px-3 py-1.5 text-xs font-semibold hover:bg-[#e5f1e3]">{tag}</button>)}</div>
               {suggestions && <div className="mt-7"><h4 className="font-bold mb-3">Recipes to consider</h4><div className="space-y-3">{suggestions.results.map(item => <div key={item.recipe.id} className="flex gap-3 items-center p-4 rounded-xl border border-[#e5eee4]"><span className="text-3xl">{recipeIcon(item.recipe)}</span><div className="flex-1 min-w-0"><h5 className="font-bold text-sm">{item.recipe.name}</h5><p className="text-xs text-[#8da18f] mt-1">{item.covered}/{item.total} ingredients fully available for 2 people</p></div><Button variant="light" onClick={() => setModal({ type: 'recipe', recipe: item.recipe })}>View <ArrowRight size={14} /></Button></div>)}</div></div>}
             </div><div className="max-w-4xl mt-5 border border-[#eedebf] bg-[#fffaf0] p-4 rounded-2xl text-sm text-[#987646] flex gap-3"><Info className="shrink-0" size={19} /><span>Natural-language AI conversations, external recipe search and voice Q&A will be connected in a later milestone. This screen currently searches the local recipe library without inventing external results.</span></div>
+          </div>
+          </details>
           </>}
           {section === 'roadmap' && <>
             <SectionHeading eyebrow="Living feature plan" title="KitchenSync build roadmap" description="Features are integrated step by step. New ideas can be added without losing the working core." />

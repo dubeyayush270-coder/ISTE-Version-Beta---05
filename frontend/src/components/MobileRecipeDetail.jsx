@@ -51,9 +51,14 @@ export default function MobileRecipeDetail({
         item.usable !== false
       )
       .reduce(
-        (total, item) => total + Number(item.quantity || 0),
+        (total, item) =>
+            total + Number(
+            item.usable_quantity ??
+            (item.usable === false ? 0 : item.quantity) ??
+            0
+            ),
         0
-      );
+        );
 
     return {
       ...ingredient,

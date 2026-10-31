@@ -107,6 +107,33 @@ def audit_meals(meals, recipes_by_id, stock, today=None):
             stock, today
         ).items()
     }
+    today = today or date.today()
+
+    by_name = {
+        item["name"].casefold(): item
+        for item in stock
+    }
+
+    batch_remaining = {}
+
+    for key, item in by_name.items():
+        if item.get("batches"):
+            batch_remaining[key] = sorted(
+                [
+                    {
+                        **batch,
+                        "remaining": float(batch["quantity"]),
+                    }
+                    for batch in item["batches"]
+                    if float(batch["quantity"]) > 0
+                ],
+                key=lambda batch: (
+                    batch.get("expiry_date") is None,
+                    batch.get("expiry_date") or "9999-12-31",
+                    batch.get("id", 0),
+                ),
+            )
+
 
     warnings = []
 
@@ -139,6 +166,18 @@ def audit_meals(meals, recipes_by_id, stock, today=None):
 
         recipe = recipes_by_id[meal["recipe_id"]]
 
+        meal_date = max(
+            today,
+            date.fromisoformat(meal["meal_date"])
+        )
+
+        meal_now = (
+            datetime.combine(meal_date, datetime.max.time())
+            if meal_date > today
+            else datetime.now()
+        )
+
+
         for ingredient in scale_ingredients(
             recipe, meal["eaters"]
         ):
@@ -154,24 +193,74 @@ def audit_meals(meals, recipes_by_id, stock, today=None):
                 ),
                 None,
             )
-
             mismatch = (
                 entry is not None
                 and entry["unit"] != unit
             )
+            if mismatch:
+                used = 0.0
+            elif key in batch_remaining:
+                eligible = []
+                for batch in batch_remaining[key]:
+                    if batch["remaining"] <= 0:
+                        continue
+                    purchase_date = batch.get("purchase_date")
+                    if (
+                        purchase_date
+                        and date.fromisoformat(purchase_date) > meal_date
+                    ):
+                        continue
+                    candidate = dict(entry)
+                    candidate["expiry_date"] = batch.get(
+                        "expiry_date"
+                    )
 
-            existing = (
-                0.0 if mismatch
-                else remaining.get(key, 0.0)
-            )
+                    if batch.get("storage") is not None:
+                        candidate["storage"] = batch["storage"]
 
-            used = min(existing, quantity)
+                    if stock_available(
+                        candidate,
+                        today=meal_date,
+                        now=meal_now,
+                    ):
+                        eligible.append(batch)
+
+                available = sum(
+                    batch["remaining"] for batch in eligible
+                )
+                used = min(quantity, available)
+
+                to_take = used
+
+                for batch in eligible:
+                    taken = min(
+                        to_take,
+                        batch["remaining"]
+                    )
+                    batch["remaining"] -= taken
+                    to_take -= taken
+
+                    if to_take <= 1e-8:
+                        break
+
+            else:
+                available = remaining.get(key, 0.0)
+
+                if entry is not None and not stock_available(
+                    entry,
+                    today=meal_date,
+                    now=meal_now,
+                ):
+                    available = 0.0
+
+                used = min(quantity, available)
+                remaining[key] = max(
+                    0.0,
+                    available - used
+                )
+
             deficit = round(quantity - used, 2)
 
-            if not mismatch:
-                remaining[key] = max(
-                    0.0, existing - quantity
-                )
 
             required = needs[key]
             required["required"] += quantity

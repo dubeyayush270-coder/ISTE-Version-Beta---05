@@ -53,6 +53,8 @@ export default function TimedCookingGuide({
   const firedReminders = useRef(new Set());
   const recognitionRef = useRef(null);
 
+  const current = timeline[stepIndex];
+
   
   const remaining = Math.max(0, timeLimit - elapsed);
   const progress =

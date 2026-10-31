@@ -93,6 +93,29 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_batches_stock_expiry
                 ON stock_batches(stock_id, expiry_date);
 
+            CREATE TABLE IF NOT EXISTS stock_reconciliations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                stock_id INTEGER
+                    REFERENCES stock(id) ON DELETE SET NULL,
+
+                ingredient_name TEXT NOT NULL,
+                unit TEXT NOT NULL,
+
+                previous_quantity REAL NOT NULL,
+                actual_quantity REAL NOT NULL,
+                difference REAL NOT NULL,
+
+                reason TEXT NOT NULL,
+                batch_changes TEXT NOT NULL,
+
+                created_at TEXT NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_stock_reconciliations_stock
+                ON stock_reconciliations(stock_id, created_at);
+
             CREATE TABLE IF NOT EXISTS recipes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,

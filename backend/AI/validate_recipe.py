@@ -3,6 +3,7 @@ import re
 
 
 NON_VEGETARIAN_INGREDIENTS = [
+    "egg",
     "chicken",
     "mutton",
     "lamb",
@@ -21,7 +22,6 @@ NON_VEGETARIAN_INGREDIENTS = [
     "fish sauce",
     "oyster sauce"
 ]
-
 
 def has_instructions(instructions):
     """Check whether a recipe contains actual cooking instructions."""
@@ -66,22 +66,54 @@ def get_minutes(duration):
     return total if total > 0 else None
 
 
-def find_non_vegetarian_ingredients(ingredients):
 
-    ingredient_text = " ".join(
-        str(item) for item in ingredients
-    ).lower()
+# Common alternative names for selected ingredients.
+INGREDIENT_ALIASES = {
+    "peanut": ("peanut", "groundnut"),
+    "groundnut": ("groundnut", "peanut"),
+    "onion": ("onion", "pyaaz", "pyaz"),
+    "egg": ("egg", "anda"),
+}
 
-    found = []
 
-    for item in NON_VEGETARIAN_INGREDIENTS:
+def ingredient_mentioned(ingredient_text, ingredient_name):
+    """
+    Match whole ingredient names, simple plurals,
+    and selected alternative names.
 
-        pattern = r"\b" + re.escape(item) + r"\b"
+    This is best-effort filtering, not an allergy guarantee.
+    """
+    name = " ".join(str(ingredient_name).casefold().split())
+
+    if not name:
+        return False
+
+    alternatives = INGREDIENT_ALIASES.get(name, (name,))
+
+    for alternative in alternatives:
+        pattern = (
+            r"(?<!\w)"
+            + re.escape(alternative)
+            + r"(?:s|es)?(?!\w)"
+        )
 
         if re.search(pattern, ingredient_text):
-            found.append(item)
+            return True
 
-    return found
+    return False
+
+
+def find_non_vegetarian_ingredients(ingredients):
+    ingredient_text = " ".join(
+        str(item) for item in ingredients
+    ).casefold()
+
+    return [
+        ingredient
+        for ingredient in NON_VEGETARIAN_INGREDIENTS
+        if ingredient_mentioned(ingredient_text, ingredient)
+    ]
+
 
 
 def validate_recipe(recipe, preferences):
@@ -152,9 +184,7 @@ def validate_recipe(recipe, preferences):
     found_excluded = []
 
     for item in excluded_ingredients:
-        pattern = r"\b" + re.escape(item.lower()) + r"\b"
-
-        if re.search(pattern, ingredient_text):
+        if ingredient_mentioned(ingredient_text, item):
             found_excluded.append(item)
 
 

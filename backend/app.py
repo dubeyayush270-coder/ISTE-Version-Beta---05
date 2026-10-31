@@ -99,24 +99,34 @@ def stock_list(c):
     return items
 
 
-def planning_stock(items):
-    """
-    Supply existing core.py with usable quantities.
 
-    The original audit_meals() and inventory_map()
-    check ingredient-level expiry. Remove the summary
-    date from these temporary planning copies because
-    expired batches were already excluded above.
-    """
+def planning_stock(items, c=None):
+    """Create planning copies with optional purchase-batch details."""
+    by_stock_id = {}
+
+    if c is not None:
+        for row in c.execute(
+            "SELECT * FROM stock_batches WHERE quantity > 0"
+        ):
+            batch = dict(row)
+            by_stock_id.setdefault(
+                batch["stock_id"], []
+            ).append(batch)
+
     result = []
 
     for item in items:
         entry = dict(item)
         entry["quantity"] = item["usable_quantity"]
         entry["expiry_date"] = None
+
+        if by_stock_id.get(item["id"]):
+            entry["batches"] = by_stock_id[item["id"]]
+
         result.append(entry)
 
     return result
+
 
 
 def sync_stock(c, item_id):
@@ -239,6 +249,11 @@ class BatchInput(BaseModel):
     purchase_date: date | None = None
     storage: str | None = None
 
+class StockReconciliationInput(BaseModel):
+    actual_quantity: float = Field(ge=0, le=1000000)
+    reason: str = Field(min_length=3, max_length=250)
+    confirmed: bool = False
+
 
 class MealInput(BaseModel):
     recipe_id: int
@@ -269,6 +284,11 @@ def validate_batch(data):
 
 
 def validate_stock(data):
+    if not data.name.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Ingredient name cannot be empty.",
+        )
     if data.unit not in ("g", "ml", "pcs"):
         raise HTTPException(
             422,
@@ -550,6 +570,267 @@ def add_inventory(data: StockInput):
 
 
 
+@app.post("/api/inventory/{item_id}/reconcile")
+def reconcile_inventory(item_id: int, data: StockReconciliationInput):
+    """Reconcile physically counted inventory against purchase batches."""
+
+    if not data.confirmed:
+        raise HTTPException(
+            status_code=422,
+            detail="Confirm the physical stock count before applying."
+        )
+
+    reason = data.reason.strip()
+    if len(reason) < 3:
+        raise HTTPException(422, "Please provide an adjustment reason.")
+
+    actual = round(data.actual_quantity, 2)
+    if abs(data.actual_quantity - actual) > 1e-9:
+        raise HTTPException(
+            422, "Quantity supports at most two decimal places."
+        )
+
+    with connection() as c:
+        c.execute("BEGIN IMMEDIATE")
+
+        ingredient_row = c.execute(
+            "SELECT * FROM stock WHERE id=?",
+            (item_id,)
+        ).fetchone()
+
+        if ingredient_row is None:
+            raise HTTPException(404, "Ingredient not found")
+
+        ingredient = dict(ingredient_row)
+
+        if ingredient["unit"] == "pcs" and not float(actual).is_integer():
+            raise HTTPException(
+                422, "Piece quantities must be whole numbers."
+            )
+
+        batches = [
+            dict(row)
+            for row in c.execute(
+                """
+                SELECT *
+                FROM stock_batches
+                WHERE stock_id=?
+                ORDER BY
+                    CASE WHEN expiry_date IS NULL THEN 1 ELSE 0 END,
+                    expiry_date,
+                    id
+                """,
+                (item_id,)
+            )
+        ]
+
+        # Support older stock records without purchase batches.
+        if not batches:
+            c.execute(
+                """
+                INSERT INTO stock_batches(
+                    stock_id, quantity, expiry_date,
+                    date_type, date_source, storage
+                )
+                VALUES (?, ?, ?, 'unknown', 'legacy_migration', ?)
+                """,
+                (
+                    item_id,
+                    ingredient["quantity"],
+                    ingredient["expiry_date"],
+                    ingredient["storage"]
+                )
+            )
+
+            batches = [
+                dict(row)
+                for row in c.execute(
+                    """
+                    SELECT *
+                    FROM stock_batches
+                    WHERE stock_id=?
+                    ORDER BY id
+                    """,
+                    (item_id,)
+                )
+            ]
+
+        previous = round(
+            sum(float(batch["quantity"]) for batch in batches),
+            2
+        )
+
+        difference = round(actual - previous, 2)
+        batch_changes = []
+
+        if difference < 0:
+            # Policy: allocate unexplained missing stock to the
+            # earliest-expiring batches first.
+            remaining = round(-difference, 2)
+
+            for batch in batches:
+                before = round(float(batch["quantity"]), 2)
+
+                if before <= 0:
+                    continue
+
+                reduction = min(before, remaining)
+                after = round(before - reduction, 2)
+
+                c.execute(
+                    """
+                    UPDATE stock_batches
+                    SET quantity=?
+                    WHERE id=? AND stock_id=?
+                    """,
+                    (after, batch["id"], item_id)
+                )
+
+                batch_changes.append({
+                    "batch_id": batch["id"],
+                    "previous": before,
+                    "actual": after,
+                    "expiry_date": batch["expiry_date"]
+                })
+
+                remaining = round(remaining - reduction, 2)
+
+                if remaining <= 0:
+                    break
+
+            if remaining > 0:
+                raise HTTPException(
+                    409, "Could not allocate the stock correction."
+                )
+
+        elif difference > 0:
+            # An unexplained increase is not a verified purchase.
+            # Create a separate adjustment batch with unknown expiry.
+            cursor = c.execute(
+                """
+                INSERT INTO stock_batches(
+                    stock_id, quantity, expiry_date,
+                    date_type, date_source, storage
+                )
+                VALUES (
+                    ?, ?, NULL,
+                    'unknown', 'manual_stock_reconciliation', ?
+                )
+                """,
+                (
+                    item_id,
+                    difference,
+                    ingredient["storage"]
+                )
+            )
+
+            batch_changes.append({
+                "batch_id": cursor.lastrowid,
+                "previous": 0,
+                "actual": difference,
+                "expiry_date": None,
+                "type": "unverified_adjustment"
+            })
+
+        else:
+            return {
+                "ok": True,
+                "changed": False,
+                "ingredient_name": ingredient["name"],
+                "quantity": previous,
+                "message": "Physical count already matches recorded stock."
+            }
+
+        # Existing KitchenSync helper — keep summary in sync.
+        sync_stock(c, item_id)
+
+        updated = c.execute(
+            "SELECT quantity FROM stock WHERE id=?",
+            (item_id,)
+        ).fetchone()
+
+        final_quantity = round(float(updated["quantity"]), 2)
+
+        if abs(final_quantity - actual) > 0.001:
+            raise HTTPException(
+                409, "Reconciled total did not match physical count."
+            )
+
+        cursor = c.execute(
+            """
+            INSERT INTO stock_reconciliations(
+                stock_id, ingredient_name, unit,
+                previous_quantity, actual_quantity,
+                difference, reason, batch_changes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                item_id,
+                ingredient["name"],
+                ingredient["unit"],
+                previous,
+                actual,
+                difference,
+                reason,
+                json.dumps(batch_changes)
+            )
+        )
+
+        adjustment_id = cursor.lastrowid
+
+    return {
+        "ok": True,
+        "changed": True,
+        "adjustment_id": adjustment_id,
+        "ingredient_name": ingredient["name"],
+        "unit": ingredient["unit"],
+        "previous_quantity": previous,
+        "actual_quantity": final_quantity,
+        "difference": difference,
+        "batch_changes": batch_changes,
+        "message": "Stock reconciliation saved successfully."
+    }
+
+
+@app.get("/api/inventory/{item_id}/reconciliations")
+def get_stock_reconciliations(item_id: int):
+    """Return the manual adjustment history for one ingredient."""
+
+    with connection() as c:
+        ingredient = c.execute(
+            "SELECT id FROM stock WHERE id=?",
+            (item_id,)
+        ).fetchone()
+
+        if ingredient is None:
+            raise HTTPException(404, "Ingredient not found")
+
+        records = [
+            dict(row)
+            for row in c.execute(
+                """
+                SELECT *
+                FROM stock_reconciliations
+                WHERE stock_id=?
+                ORDER BY created_at DESC, id DESC
+                """,
+                (item_id,)
+            )
+        ]
+
+        for record in records:
+            record["batch_changes"] = json.loads(
+                record["batch_changes"]
+            )
+
+    return {
+        "ingredient_id": item_id,
+        "adjustments": records
+    }
+
+
+
 @app.put("/api/inventory/{item_id}")
 def edit_inventory(item_id: int, data: StockInput):
     values = validate_stock(data)
@@ -558,12 +839,21 @@ def edit_inventory(item_id: int, data: StockInput):
         c.execute("BEGIN IMMEDIATE")
 
         existing = c.execute(
-            "SELECT id FROM stock WHERE id=?",
+            "SELECT id, unit FROM stock WHERE id=?",
             (item_id,),
         ).fetchone()
 
         if existing is None:
             raise HTTPException(404, "Ingredient not found")
+
+        if existing["unit"] != data.unit:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Changing an ingredient's unit is not supported. "
+                    "Use the existing unit to preserve purchase batch quantities."
+                ),
+            )
 
         if c.execute(
             "SELECT 1 FROM stock WHERE name=? AND id<>?",
@@ -821,7 +1111,7 @@ def stock_check(
 
     with connection() as c:
         meals = plans(c, start, days)
-        stock = planning_stock(stock_list(c))
+        stock = planning_stock(stock_list(c), c)
         recipes_data = recipe_list(c)
 
     audit = audit_meals(
@@ -843,6 +1133,11 @@ def stock_check(
 
 @app.post("/api/plan/{meal_date}/{meal_type}/complete")
 def complete_meal(meal_date: date, meal_type: str):
+    if meal_date > date.today():
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot complete a future meal."
+        )
     with connection() as c:
         c.execute("BEGIN IMMEDIATE")
 
@@ -1016,6 +1311,7 @@ def dashboard():
         stock = stock_list(c)
         recipes_data = recipe_list(c)
         week = plans(c, today, 7)
+        planning = planning_stock(stock, c)
 
         today_plan = [
             meal

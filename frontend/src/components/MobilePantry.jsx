@@ -25,6 +25,12 @@ const FILTERS = [
   { id: "expiring", label: "Expiring" },
 ];
 
+const DEFAULT_LOW_STOCK_THRESHOLDS = {
+  g: 100,
+  ml: 100,
+  pcs: 2,
+};
+
 const DATE_TYPES = [
   { value: "unknown", label: "Not specified" },
   { value: "expiry", label: "Expiry date" },
@@ -89,11 +95,13 @@ function normalizeItem(item, index) {
     (item.usable === false ? 0 : quantity)
   );
 
-  const thresholdValue =
-    item.min_quantity ??
-    item.minimum_quantity ??
-    item.low_stock_threshold ??
-    item.reorder_level;
+const thresholdValue =
+  item.min_quantity ??
+  item.minimum_quantity ??
+  item.low_stock_threshold ??
+  item.reorder_level ??
+  DEFAULT_LOW_STOCK_THRESHOLDS[item.unit] ??
+  null;
 
   const threshold =
     thresholdValue == null || thresholdValue === ""
@@ -708,6 +716,8 @@ export default function MobilePantry({
   inventory = [],
   dashboard = {},
   onManage,
+  onEdit,
+  onDelete,
   onScanConfirmed,
 }) {
   const [search, setSearch] = useState("");
@@ -1011,18 +1021,43 @@ export default function MobilePantry({
                     </div>
                     );
                 })}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                            setSelected(item);
+                            setScanForBatch(null);
+                            }}
+                            className="rounded-xl bg-[#e4f2e8] px-3 py-2 text-xs font-bold text-[#26714a]"
+                        >
+                            Manage Batches
+                        </button>
 
+                        {onEdit && (
+                            <button
+                            type="button"
+                            onClick={() => onEdit(item)}
+                            className="flex items-center gap-1 rounded-xl bg-[#edf2f0] px-3 py-2 text-xs font-bold text-[#466b55]"
+                            aria-label={`Edit ${item.name}`}
+                            >
+                            <Pencil size={14} />
+                            Edit
+                            </button>
+                        )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSelected(item);
-                  setScanForBatch(null);
-                }}
-                className="mt-2 rounded-xl bg-[#e4f2e8] px-3 py-2 text-xs font-bold text-[#26714a]"
-              >
-                Manage Batches
-              </button>
+                {onDelete && (
+                    <button
+                    type="button"
+                    onClick={() => onDelete(item)}
+                    className="flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                    aria-label={`Delete ${item.name}`}
+                    >
+                    <Trash2 size={14} />
+                    Delete
+                    </button>
+                )}
+                </div>
+
             </div>
 
             <Status item={item} />
@@ -1063,10 +1098,11 @@ export default function MobilePantry({
       )}
 
       <p className="kspantry-note">
-        Low-stock alerts use saved minimum quantities when
-        available. Purchase dates are tracked individually.
-        Open Manage Batches to review each purchase.
-      </p>
+            Low-stock alerts use approximate default thresholds
+            (100 g, 100 ml, or 2 pcs) unless a custom threshold is provided.
+            Check Smart Shopping for meal-specific shortages.
+            Purchase dates are tracked individually.
+            </p>
 
       {scannerOpen && (
         <ExpiryScanner
