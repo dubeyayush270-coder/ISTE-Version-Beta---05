@@ -359,6 +359,7 @@ const saveStock = event => {
                 initialFilter={pantryFilter}
                 inventory={data.inventory}
                 dashboard={data.dashboard}
+                onInventoryChanged={refresh}
                 onManage={() => openStock(null)}
                 onEdit={(item) => openStock(item)}
                 onDelete={(item) => {
@@ -378,8 +379,8 @@ const saveStock = event => {
                 ...DEFAULT_STOCK,
                 name: result.name || "",
                 expiry_date: result.expiry_date || "",
-                quantity: 0,
-                unit: "g",
+                quantity: Number(result.quantity) || 0,
+                unit: ["g", "ml", "pcs"].includes(result.unit) ? result.unit : "g",
 
                 // Preserve scanned information
                 date_type: result.date_type || "unknown",
