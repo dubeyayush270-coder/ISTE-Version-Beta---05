@@ -17,7 +17,7 @@ From planning meals to tracking groceries and reducing food waste, KitchenSync b
 ### 📱 Android Application
 **Take your smart kitchen assistant wherever you go.**
 
-👉 **[📱 Download KitchenSync APK](https://drive.google.com/uc?export=download&id=1WjYaNaAxn6FoDkJysNCrIXOriIpWYOSN)**
+👉 **[📱 Download KitchenSync APK](https://drive.google.com/uc?export=download&id=1QXt6ihjHXGBVjeJFAggGZtNQVLLqKmuJ)**
 
 > **Note:** The Android APK is distributed through Google Drive. You may be asked to confirm the download or installation.
 
