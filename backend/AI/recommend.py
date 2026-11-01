@@ -1,100 +1,86 @@
-
 from AI.query_builder import build_search_queries
 from AI.search import search_recipes
 from AI.process_recipe import process_recipe
 
 
-def get_recipe_recommendations(configuration):
+MAX_SEARCH_QUERIES = 3
+MAX_PAGES_TO_CHECK = 5
 
+
+def get_recipe_recommendations(configuration, max_results=3):
+    """Find eligible recipes, with bounded retries and per-page failure isolation.
+
+    The return structure remains compatible with the existing KitchenSync API.
+    """
     queries = build_search_queries(configuration)
+    preferences = configuration.get("preferences", {})
 
-    all_search_results = []
+    valid_recipes = []
     seen_urls = set()
+    pages_checked = 0
 
-    # Step 1: Search separately for each dish
-    for query in queries[:2]:
+    for query in queries[:MAX_SEARCH_QUERIES]:
+        if len(valid_recipes) >= max_results or pages_checked >= MAX_PAGES_TO_CHECK:
+            break
 
-        print("\nSearching for:", query)
+        print("Searching for:", query, flush=True)
+        results = search_recipes(query, max_results=2)
 
-        results = search_recipes(query, max_results=3)
-
-        print("Results returned:", len(results))
-
-        # Retry with a simpler query if no results are found
         if not results:
-
-            dish = query.split('"')[1]
-
+            # Keep the original food-type restriction when falling back.
+            dish = query.split('"')[1] if '"' in query else query
             fallback_query = f"{dish} Indian recipe"
-
-            food_type = configuration.get(
-                "preferences", {}
-            ).get("food_type")
-
+            food_type = preferences.get("food_type")
             if food_type:
-                fallback_query += " " + food_type
+                fallback_query += f" {food_type}"
 
-            print("Retrying with:", fallback_query)
+            print("Retrying with:", fallback_query, flush=True)
+            results = search_recipes(fallback_query, max_results=2)
 
-            results = search_recipes(
-                fallback_query,
-                max_results=3
-            )
-
-            print("Fallback results:", len(results))
-
-        for result in results:
+        for result in results or []:
+            if len(valid_recipes) >= max_results or pages_checked >= MAX_PAGES_TO_CHECK:
+                break
 
             url = result.get("url")
-
             if not url or url in seen_urls:
                 continue
 
             seen_urls.add(url)
-            all_search_results.append(result)
+            pages_checked += 1
+            print("Checking recipe:", url, flush=True)
 
-    print("\nSearch results found:", len(all_search_results))
+            try:
+                processed = process_recipe(url, preferences)
+            except Exception as error:
+                print("Processing error:", error, flush=True)
+                continue
 
-    valid_recipes = []
+            if not processed or processed.get("status") != "success":
+                continue
 
-    # Step 2: Extract and validate each unique result
-    for result in all_search_results[:3]:
+            for item in processed.get("recipes", []):
+                validation = item.get("validation", {})
+                recipe = item.get("recipe", {})
 
-        url = result.get("url")
-
-        processed = process_recipe(
-            url,
-            configuration.get("preferences", {})
-        )
-
-        print("\nURL:", url)
-        print("Processing status:", processed["status"])
-
-        if processed["status"] != "success":
-            print("Reason:", processed.get("message", "Unknown"))
-            continue
-
-        for item in processed["recipes"]:
-
-            validation = item["validation"]
-            recipe = item["recipe"]
-
-            print("Recipe:", recipe["title"])
-            print("Validation:", validation["status"])
-            print("Reason:", validation["reason"])
-
-            if validation["status"] == "eligible":
+                if validation.get("status") != "eligible":
+                    continue
 
                 valid_recipes.append({
-                    "title": recipe["title"],
+                    "title": recipe.get("title", "Unknown"),
                     "url": url,
-                    "ingredients": recipe["ingredients"],
-                    "instructions": recipe["instructions"],
-                    "cooking_time": recipe["cooking_time"]
+                    "ingredients": recipe.get("ingredients", []),
+                    "instructions": recipe.get("instructions", []),
+                    "cooking_time": recipe.get("cooking_time", "Unknown"),
                 })
 
+                if len(valid_recipes) >= max_results:
+                    break
+
+    print("Eligible recipes found:", len(valid_recipes), flush=True)
+
+    # Preserve the return shape and meaning from the current main project.
     return {
         "search_query": "\n".join(queries),
         "search_queries": queries,
-        "recipes": valid_recipes
+        "recipes": valid_recipes,
     }
