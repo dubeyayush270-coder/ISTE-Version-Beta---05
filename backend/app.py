@@ -26,6 +26,7 @@ from family_management import (
 )
 from weekly_planner_api import router as weekly_planner_router
 from online_recipes_api import router as online_recipes_router
+from recipe_hub_api import router as recipe_hub_router
 
 
 
@@ -49,6 +50,7 @@ app.include_router(nutrition_router)
 app.include_router(family_router)
 app.include_router(weekly_planner_router)
 app.include_router(online_recipes_router)
+app.include_router(recipe_hub_router)
 
 
 
@@ -1532,6 +1534,14 @@ if DIST_DIR.is_dir():
         ),
         name="react-assets",
     )
+
+
+@app.get("/recipe-hub-sw.js", include_in_schema=False)
+def recipe_hub_service_worker():
+    worker = DIST_DIR / "recipe-hub-sw.js"
+    if not worker.is_file():
+        raise HTTPException(404, "Service worker not built")
+    return FileResponse(worker, media_type="application/javascript", headers={"Service-Worker-Allowed": "/"})
 
 
 @app.get("/")

@@ -203,8 +203,8 @@ def import_online_recipe(data: ImportRequest):
             INSERT INTO recipes (name, category, tags, base_servings,
                                  calories_per_serving, minutes, ingredients, steps,
                                  protein_g_per_serving, carbs_g_per_serving,
-                                 fat_g_per_serving, nutrition_source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 fat_g_per_serving, nutrition_source, source_url, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (stored_name, data.category, json.dumps(tags), data.base_servings,
               data.calories_per_serving or 0, data.minutes,
               json.dumps(rows), json.dumps(source["steps"]),
@@ -212,6 +212,7 @@ def import_online_recipe(data: ImportRequest):
               data.fat_g_per_serving,
               "user_entered" if any(x is not None for x in (
                   data.calories_per_serving, data.protein_g_per_serving,
-                  data.carbs_g_per_serving, data.fat_g_per_serving)) else "unknown"))
+                  data.carbs_g_per_serving, data.fat_g_per_serving)) else "unknown",
+              source.get("source_url", "")[:1000], source.get("image", "")[:1000]))
         return {"ok": True, "recipe_id": cursor.lastrowid, "name": stored_name,
                 "category": data.category, "already_imported": False}

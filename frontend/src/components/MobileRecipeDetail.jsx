@@ -294,11 +294,17 @@ export default function MobileRecipeDetail({
 
               <span>
                 <Flame size={16} />
-                ~{Math.round(
-                  recipe.calories_per_serving
-                )} kcal/serving
+                {recipe.nutrition_source === 'unknown'
+                  ? 'Calories unavailable'
+                  : `~${Math.round(recipe.calories_per_serving || 0)} kcal/serving`}
               </span>
             </div>
+
+            <p className="kscook-nutrition">
+              Protein: {recipe.protein_g_per_serving ?? '—'} g · Carbs: {recipe.carbs_g_per_serving ?? '—'} g · Fat: {recipe.fat_g_per_serving ?? '—'} g
+              <small>{recipe.nutrition_source === 'illustrative' ? ' Illustrative values only.' : recipe.nutrition_source === 'user_entered' ? ' User-reviewed values.' : ' Unknown values are unavailable, not zero.'}</small>
+            </p>
+            {recipe.source_url && <p className="kscook-source"><a href={recipe.source_url} rel="noreferrer" target="_blank">View original recipe source</a> (online only)</p>}
 
             {/* Serving counter */}
             <div className="kscook-serving-card">
