@@ -1,7 +1,30 @@
-<<<<<<< HEAD
-# KitchenSync v0.2 — React + FastAPI Hackathon Starter
 
-A modular Indian household kitchen management MVP, based on the original KitchenSync starter. **This is a working backend plus a new React frontend source project, not the finished AI product.**
+# 🍽️ KitchenSync — AI-Powered Smart Kitchen Assistant
+
+### Plan Smarter. Eat Healthier. Waste Less.
+
+**KitchenSync** is an AI-powered Indian household kitchen management platform designed to simplify meal planning, grocery management, cooking, and everyday kitchen decisions.
+
+From planning meals to tracking groceries and reducing food waste, KitchenSync brings your entire kitchen experience together in one smart application.
+
+## 🚀 Experience KitchenSync
+
+### 🌐 Live Website
+**Explore KitchenSync directly in your browser.**
+
+👉 **[Launch KitchenSync Web App](https://iste-version-beta-05.onrender.com/)**
+
+### 📱 Android Application
+**Take your smart kitchen assistant wherever you go.**
+
+👉 **[📱 Download KitchenSync APK](https://drive.google.com/uc?export=download&id=1WjYaNaAxn6FoDkJysNCrIXOriIpWYOSN)**
+
+> **Note:** The Android APK is distributed through Google Drive. You may be asked to confirm the download or installation.
+
+---
+
+## 🛠️ Tech stack
+
 
 ## Tech stack
 
