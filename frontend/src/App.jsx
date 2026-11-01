@@ -7,6 +7,7 @@ import MobileDashboard from "./components/MobileDashboard.jsx";
 import MobileMealPlanner from "./components/MobileMealPlanner.jsx";
 import WeeklyPlanGenerator from "./components/WeeklyPlanGenerator.jsx";
 import MobileRecipeLibrary from "./components/MobileRecipeLibrary.jsx";
+import { cacheRecipeLibrary, readOfflineRecipes } from './lib/offlineRecipes.js';
 import MobileRecipeDetail from "./components/MobileRecipeDetail.jsx";
 import MobilePantry from "./components/MobilePantry.jsx";
 import AIRecipeFinder from "./components/AIRecipeFinder.jsx";
@@ -122,6 +123,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [offlineRecipesMode, setOfflineRecipesMode] = useState(false);
   const [notice, setNotice] = useState(null);
   const [modal, setModal] = useState(null);
   const [recipeSearch, setRecipeSearch] = useState('');
@@ -142,9 +144,25 @@ export default function App() {
         api('/settings'), api('/inventory'), api('/recipes'), api(`/plan?start=${start}&days=7`),
         api('/dashboard'), api(`/stock-check?start=${start}&days=7`)
       ]);
+      setOfflineRecipesMode(false);
+      cacheRecipeLibrary(recipes).catch(() => {});
       setData({ settings, inventory, recipes, plan, dashboard, audit });
       return true;
-    } catch (err) { setError(err.message || 'Cannot connect to backend.'); return false; }
+    } catch (err) {
+      // If the API is unavailable, permit reading the last synced recipe library.
+      try {
+        const cached = await readOfflineRecipes();
+        if (cached?.recipes?.length) {
+          setOfflineRecipesMode(true);
+          setSection('recipes');
+          setData({ settings: { household_name: 'Offline recipe library', household_size: 2 },
+            inventory: [], recipes: cached.recipes, plan: [], dashboard: {}, audit: {} });
+          setError('Offline mode: saved recipe instructions are available. Pantry, meal plans and changes require internet.');
+          return true;
+        }
+      } catch { /* No device cache available. */ }
+      setError(err.message || 'Cannot connect to backend.'); return false;
+    }
     finally { setBusy(false); }
   }, [weekStart]);
   useEffect(() => { refresh() }, [refresh]);
@@ -157,12 +175,14 @@ export default function App() {
     finally { actionInFlight.current = false; setBusy(false); }
   };
   const changeSection = (id, inventoryFilter = 'all') => {
+    if (offlineRecipesMode && id !== 'recipes') { notify('Only saved recipes are available offline. Connect to use this section.', true); return; }
     if (id !== section) { sectionHistory.current.push(section); setSection(id); }
     if (id === 'inventory') setPantryFilter(inventoryFilter);
     setMobileNav(false);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
   const goBack = () => {
+    if (offlineRecipesMode) { setSection('recipes'); return; }
     const previous = sectionHistory.current.pop() || 'dashboard';
     setSection(previous);
     setMobileNav(false);
@@ -313,30 +333,22 @@ const saveStock = event => {
           </div>
           </>}
           {section === 'recipes' && <>
-
-
-            {/* Mobile Recipe Library */}
-            <div className="md:hidden">
-              <MobileRecipeLibrary
-                recipes={data.recipes}
-                inventory={data.inventory}
-                householdSize={data.settings.household_size}
-                onOpenRecipe={(recipe) =>
-                  setModal({ type: "recipe", recipe })
-                }
-                onNavigate={changeSection}
-              />
-            </div>
-
-            {/* Existing Desktop Recipe Library */}
-            <div className="hidden md:block">
-
-            <SectionHeading eyebrow="Find your next favourite" title="Recipe library" description="Browse familiar Indian meals, scale portions and get hands-free cooking guidance." action={<Button variant="light" onClick={() => changeSection('assistant')}><Sparkles size={16} /> Find from my stock</Button>} />
-            <div className="relative mb-5"><Search size={19} className="absolute left-4 top-[13px] text-[#91a499]" /><input className="k-field pl-12" placeholder="Search paneer, breakfast, quick meals..." value={recipeSearch} onChange={e => setRecipeSearch(e.target.value)} /></div>
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">{recipesFiltered.map(r => <article className="k-card overflow-hidden flex flex-col" key={r.id}><div className="h-36 flex items-center justify-center text-[70px] relative bg-gradient-to-br from-[#f1f6e8] to-[#e9f3df]">{recipeIcon(r)}<span className="absolute top-3 right-3"><Tag tone="green">{r.category}</Tag></span></div><div className="p-5 flex-1 flex flex-col"><h3 className="text-lg font-bold">{r.name}</h3><div className="flex flex-wrap gap-2 mt-3 text-xs text-[#819183]"><span className="flex items-center gap-1"><Clock3 size={14} /> {r.minutes} min</span><span className="flex items-center gap-1"><UsersRound size={14} /> {r.base_servings} servings</span><span>~{num(r.calories_per_serving)} kcal/serving*</span></div><div className="flex flex-wrap gap-2 mt-3 mb-5">{r.tags.slice(0, 3).map(tag => <Tag key={tag}>{tag}</Tag>)}</div><Button className="mt-auto w-full" onClick={() => setModal({ type: 'recipe', recipe: r })}>See ingredients & cook <ArrowRight size={15} /></Button></div></article>)}</div>
-            {!recipesFiltered.length && <EmptyState icon={Search}>No recipes match this search.</EmptyState>}
-            <p className="text-xs text-[#9baa9b] mt-5">* Calories and recipe quantities are illustrative demo estimates, not a verified nutrition database.</p>
-            </div>
+            <MobileRecipeLibrary
+              recipes={data.recipes}
+              inventory={data.inventory}
+              householdSize={data.settings.household_size}
+              offline={offlineRecipesMode}
+              onOpenRecipe={recipe => setModal({ type: 'recipe', recipe })}
+              onNavigate={changeSection}
+              onNotify={notify}
+              onRefresh={refresh}
+              onSchedule={(recipe, day, mealType) => {
+                const existing = data.plan.find(p => p.meal_date === day && p.meal_type === mealType);
+                if (existing?.completed_at) { notify('This meal was already cooked and cannot be replaced.', true); return; }
+                setMealDraft({ recipe_id: recipe.id, eaters: savedPlanEaters(existing, data.settings.household_size) });
+                setModal({ type: 'plan', day, mealType, existing });
+              }}
+            />
           </>}
           {section === 'inventory' && <>
 

@@ -154,6 +154,10 @@ def init_db():
                 c.execute(f"ALTER TABLE recipes ADD COLUMN {column} REAL")
         if "nutrition_source" not in nutrition_columns:
             c.execute("ALTER TABLE recipes ADD COLUMN nutrition_source TEXT NOT NULL DEFAULT 'unknown'")
+        # Preserve attribution and image links on reviewed online imports.
+        for column in ('source_url', 'image_url'):
+            if column not in nutrition_columns:
+                c.execute(f'ALTER TABLE recipes ADD COLUMN {column} TEXT')
         # Seeded demo calorie amounts are illustrative, NOT verified nutrition.
         c.execute("""UPDATE recipes SET nutrition_source='illustrative'
                      WHERE nutrition_source='unknown' AND calories_per_serving>0

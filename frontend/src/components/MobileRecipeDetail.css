@@ -391,3 +391,5 @@
     padding-top: calc(15px + env(safe-area-inset-top));
   }
 }
+
+.kscook-nutrition,.kscook-source{font-size:12px;line-height:1.6;color:#617c69;margin:0 0 14px}.kscook-nutrition small{display:block;color:#859989;margin-top:3px}.kscook-source a{font-weight:750;color:#287b50;text-decoration:underline}

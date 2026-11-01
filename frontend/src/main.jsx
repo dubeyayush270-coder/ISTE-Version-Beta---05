@@ -20,3 +20,10 @@ createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+// On the deployed HTTPS website, cache the app shell for offline recipe browsing.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/recipe-hub-sw.js').catch(() => {});
+  });
+}
