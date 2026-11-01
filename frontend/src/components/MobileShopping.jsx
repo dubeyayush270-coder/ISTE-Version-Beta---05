@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 import {
   AlertCircle,
-  Check,
   CheckCircle2,
   ClipboardCopy,
   PackagePlus,
@@ -19,29 +18,12 @@ import { api } from '../lib/api';
 
 import {
   amountLabel,
-  checklistKey,
   makePurchaseRequest,
   normalizedShoppingRows,
   purchaseDateWarning,
 } from '../lib/shoppingUtils';
 
 import './MobileShopping.css';
-
-function readChecklist(weekStart) {
-  try {
-    const value = JSON.parse(
-      localStorage.getItem(checklistKey(weekStart)) || '{}'
-    );
-
-    return value &&
-      typeof value === 'object' &&
-      !Array.isArray(value)
-      ? value
-      : {};
-  } catch {
-    return {};
-  }
-}
 
 export default function MobileShopping({
   shopping = [],
@@ -56,10 +38,6 @@ export default function MobileShopping({
     [shopping]
   );
 
-  const [checked, setChecked] = useState(
-    () => readChecklist(weekStart)
-  );
-
   const [expanded, setExpanded] = useState(null);
 
   const [quantity, setQuantity] = useState('');
@@ -72,24 +50,18 @@ export default function MobileShopping({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // Reload the local checklist when the selected week changes.
+  // Reset the purchase form when the selected week changes.
   useEffect(() => {
-    setChecked(readChecklist(weekStart));
     setExpanded(null);
     setMessage('');
     setError('');
   }, [weekStart]);
 
-  const purchasedCount = rows.filter(
-    (row) => Boolean(checked[row.key])
-  ).length;
-
   const dateWarning = purchaseDateWarning(dateValue);
 
   // QUICK-COMMERCE INTEGRATION
   //
-  // Send only missing ingredients that have NOT been
-  // marked purchased in the existing shopping checklist.
+  // Send only real, currently missing ingredients.
   //
   // The handoff receives:
   // [{ name: 'Paneer', quantity: 680, unit: 'g' }]
@@ -100,7 +72,6 @@ export default function MobileShopping({
       rows
         .filter(
           (row) =>
-            !checked[row.key] &&
             Number.isFinite(Number(row.missing)) &&
             Number(row.missing) > 0
         )
@@ -109,28 +80,8 @@ export default function MobileShopping({
           quantity: Number(row.missing),
           unit: row.unit,
         })),
-    [rows, checked]
+    [rows]
   );
-
-  function toggleChecked(key) {
-    const updated = {
-      ...checked,
-      [key]: !checked[key],
-    };
-
-    setChecked(updated);
-
-    try {
-      localStorage.setItem(
-        checklistKey(weekStart),
-        JSON.stringify(updated)
-      );
-    } catch {
-      setError(
-        'Checklist status could not be stored on this device.'
-      );
-    }
-  }
 
   function openPurchase(row) {
     setExpanded(
@@ -148,13 +99,11 @@ export default function MobileShopping({
   // Keep the existing shopping-list clipboard functionality.
   async function copyList() {
     try {
-      const items = rows.filter(
-        (row) => !checked[row.key]
-      );
+      const items = rows;
 
       if (!items.length) {
         setMessage(
-          'There are no unchecked items to copy.'
+          'Nothing to copy.'
         );
         return;
       }
@@ -171,7 +120,7 @@ export default function MobileShopping({
           .join('\n')
       );
 
-      setMessage('Unchecked shopping items copied.');
+      setMessage('Shopping list copied.');
       onNotify?.('Shopping list copied');
     } catch {
       setError(
@@ -211,12 +160,6 @@ export default function MobileShopping({
         body: JSON.stringify(request.body),
       });
 
-      // A new shortage for the same ingredient must not inherit a stale
-      // "purchased" checkmark after this batch is recorded.
-      const nextChecked = { ...checked };
-      delete nextChecked[row.key];
-      setChecked(nextChecked);
-      try { localStorage.setItem(checklistKey(weekStart), JSON.stringify(nextChecked)); } catch { /* State still updates */ }
       setExpanded(null);
 
       setMessage(
@@ -258,10 +201,7 @@ export default function MobileShopping({
             <span aria-hidden="true">🛒</span>
           </h1>
 
-          <p>
-            Based on the meal plan and usable Pantry
-            stock — not guessed quantities.
-          </p>
+          <p>Based on your meal plan and Pantry.</p>
         </div>
 
         <div className="ks-shopping-icon">
@@ -269,23 +209,11 @@ export default function MobileShopping({
         </div>
       </header>
 
-      {/* Shopping statistics */}
+      {/* Shortage summary */}
       <div className="ks-shopping-stats">
         <div className="ks-shopping-stat">
           <strong>{rows.length}</strong>
-          <span>Ingredients needed</span>
-        </div>
-
-        <div className="ks-shopping-stat">
-          <strong>{purchasedCount}</strong>
-          <span>Marked purchased</span>
-        </div>
-
-        <div className="ks-shopping-stat">
-          <strong>
-            {rows.length - purchasedCount}
-          </strong>
-          <span>Still on list</span>
+          <span>Items to buy</span>
         </div>
       </div>
 
@@ -336,7 +264,7 @@ export default function MobileShopping({
 
           <p>
             {weekStart ? `Week starting ${weekStart}` : 'Current meal-plan week'}
-            {' · '}Tap a checkbox only after buying. To update stock, use Record purchase.
+            {' · '}Record purchases to update Pantry.
           </p>
         </div>
 
@@ -372,38 +300,11 @@ export default function MobileShopping({
           {rows.map((row) => (
             <article
               key={row.key}
-              className={`ks-shopping-item ${
-                checked[row.key]
-                  ? 'ks-shopping-item-checked'
-                  : ''
-              }`}
+              className="ks-shopping-item"
             >
               {/* Ingredient name and missing quantity */}
               <div className="ks-shopping-item-main">
-                <label className="ks-shopping-check">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(
-                      checked[row.key]
-                    )}
-                    onChange={() =>
-                      toggleChecked(row.key)
-                    }
-                  />
-
-                  <span
-                    aria-hidden="true"
-                    className="ks-shopping-check-mark"
-                  >
-                    {checked[row.key] && (
-                      <Check size={15} />
-                    )}
-                  </span>
-
-                  <span className="ks-shopping-name">
-                    {row.name}
-                  </span>
-                </label>
+                <span className="ks-shopping-name">{row.name}</span>
 
                 <div className="ks-shopping-quantity">
                   <strong>
@@ -438,15 +339,10 @@ export default function MobileShopping({
 
               {/* Shopping actions */}
               <div className="ks-shopping-item-actions">
-                <span className="ks-shopping-checked-label">
-                  {checked[row.key]
-                    ? 'Bought · checklist only (not added to Pantry)'
-                    : 'To buy'}
-                </span>
-
                 <button
                   type="button"
                   className="ks-shopping-btn ks-shopping-btn-primary"
+                  style={{ flex: 1 }}
                   onClick={() =>
                     openPurchase(row)
                   }
@@ -461,7 +357,7 @@ export default function MobileShopping({
                   <PackagePlus size={16} />
 
                   {expanded === row.key
-                    ? 'Close purchase form'
+                    ? 'Close'
                     : 'Record purchase'}
                 </button>
               </div>
@@ -476,10 +372,7 @@ export default function MobileShopping({
                   aria-busy={saving}
                 >
                   <div className="ks-shopping-help">
-                    Confirm how much you actually
-                    bought. This creates a new
-                    purchase batch, not an overwrite
-                    of your existing stock.
+                    Confirm quantity to add to Pantry.
                   </div>
 
                   <div className="ks-shopping-form-grid">
@@ -578,8 +471,7 @@ export default function MobileShopping({
                   )}
 
                   <p className="ks-shopping-helper-text">
-                    No printed date? Leave it blank.
-                    KitchenSync won't invent an expiry date.
+                    No date? Leave blank.
                   </p>
 
                   <button
@@ -597,7 +489,7 @@ export default function MobileShopping({
 
                     {saving
                       ? 'Saving purchase...'
-                      : 'Confirm and save purchase'}
+                      : 'Save to Pantry'}
                   </button>
                 </form>
               )}
@@ -606,15 +498,9 @@ export default function MobileShopping({
         </div>
       )}
 
-      {/* Checklist explanation */}
       <footer className="ks-shopping-footer">
         <ShoppingBasket size={18} />
-
-        <p>
-          <strong>Checklist = shopping progress only.</strong>{' '}
-          Uncheck any item if you still need to buy it. Saving a purchase
-          adds a batch to Pantry and refreshes actual shortages.
-        </p>
+        <p>Record purchases to update Pantry stock.</p>
       </footer>
 
       <details className="ks-shopping-extra">
@@ -622,7 +508,7 @@ export default function MobileShopping({
         <QuickCommerceHandoff items={quickCommerceItems} />
       </details>
       <details className="ks-shopping-extra">
-        <summary>Compare grocery prices <span>Manual entries only</span></summary>
+        <summary>Compare online prices <span>Blinkit · Zepto · Instamart</span></summary>
         <PriceComparison rows={rows} />
       </details>
     </section>
