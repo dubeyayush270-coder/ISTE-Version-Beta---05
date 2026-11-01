@@ -1,0 +1,76 @@
+KitchenSync — Smart Recipe Hub Integration
+==========================================
+Base: the uploaded KitchenSync-Recipe-Hub-Latest.zip (merged Member 1 + Member 2).
+
+IMPORTANT: This is a source update, not a published website, APK or Git push.
+Includes complete ready-to-replace versions of the changed files, plus new files.
+Do not use it on an unrelated Git branch or an older team version without review.
+
+Install on Windows PowerShell
+-----------------------------
+1. Move KitchenSync-Recipe-Hub-Update.zip to D:\Downloads.
+2. Open PowerShell and run:
+
+cd D:\Downloads\KitchenSync
+
+git status -sb
+
+Compress-Archive -Path .\backend,.\frontend\src,.\tests -DestinationPath .\Before-Recipe-Hub.zip -Force
+
+Expand-Archive -LiteralPath 'D:\Downloads\KitchenSync-Recipe-Hub-Update.zip' -DestinationPath 'D:\Downloads\KitchenSync' -Force
+
+3. Verify in the same project:
+
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+
+cd frontend
+npm.cmd run build
+cd ..
+git diff --check
+
+4. Restart the FastAPI server and the frontend, refresh the browser, and open Recipe Library.
+   A deployed website requires committing, merging and redeploying the new source.
+   The service worker file is copied automatically from frontend/public during Vite build.
+
+Expected Recipe Hub UI
+----------------------
+- Explore: pantry-aware discovery, serving scaling, quick/high-protein/vegetarian/expiry filters,
+  explanations, conservative substitution hints and user-entered price estimates.
+- Online: reuse reviewed TheMealDB import; attributes original provider/source URL.
+- My Recipes: favorite imported/custom dishes, collections, ratings, personal cooking notes (stored in a shared household database).
+- Cook Again: completed planned meals and explicitly recorded cooking-history entries.
+- Personal versions: duplicate recipe with edited ingredients and steps, without altering original.
+- Plan: opens the existing meal editor with recipe preselected; user reviews and saves.
+- View & Cook: retains existing Voice Chef, timers and adjustable servings.
+- Offline: after a successful online visit, IndexedDB saves the recipe library and metadata.
+  The built website's service worker caches same-origin app shell/assets. Offline is READ-ONLY.
+  Previously viewed images from third-party websites may not be cached. Android WebView
+  offline-shell behavior should be tested separately.
+
+Safety and accuracy
+-------------------
+- The Recipe Hub never fabricates leftovers or macro values.
+- Unknown macros are displayed as unavailable, not zero. Seeded calories are illustrative.
+- Price estimates come from user input, NOT live offers.
+- Ingredient substitutions are suggestions, not automatic changes to quantities or diet.
+- Pantry and meal_plan are never changed by profile/copy/history actions.
+- Using Add to Weekly Plan goes to the existing editor; completed meals remain protected.
+- The backend is still a shared household prototype without authentication; do not expose
+  real personal data or private dietary notes on an unrestricted public demo server.
+- Recipe images may need internet; importing requires an online connection.
+- Original online recipe base servings and ingredient quantities still need review.
+
+Verification performed in the authoring environment
+---------------------------------------------------
+- 73 backend tests PASSED with an isolated no-network stub for the optional 'ddgs' search
+  dependency, which is missing here. This does not test live external AI searches.
+- All 30 JavaScript/JSX source files parsed without syntax errors.
+- Production Vite build was NOT run here (the uploaded ZIP omitted node_modules and
+  npm dependencies were unavailable offline). Run npm.cmd run build on your laptop.
+- No browser/mobile smoke test, Git commit, push, or deployment has been performed.
+
+Deployment
+----------
+Once local tests and browser interactions pass, commit selected source files only.
+Do not stage Before-Recipe-Hub.zip, old updater scripts, .bak or SQLite databases.
+Merging/pushing triggers the normal deployment and APK workflow only when you approve it.

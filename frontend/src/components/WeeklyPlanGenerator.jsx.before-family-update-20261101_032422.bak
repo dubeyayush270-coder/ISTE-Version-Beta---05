@@ -1,0 +1,198 @@
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock3, LoaderCircle, RefreshCw, Sparkles, UsersRound, X } from 'lucide-react';
+import { api, prettyDate } from '../lib/api';
+import './WeeklyPlanGenerator.css';
+
+const TYPES = ['breakfast', 'lunch', 'dinner'];
+const ICONS = { breakfast: '🥣', lunch: '🍛', dinner: '🍲' };
+const payloadMeals = meals => meals.map(({ meal_date, meal_type, recipe_id, eaters }) =>
+  ({ meal_date, meal_type, recipe_id, eaters }));
+
+export default function WeeklyPlanGenerator({ start, householdSize, onSaved, onNotify }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <div className="kswg-launch">
+      <div><span className="kswg-eyebrow">A LITTLE LESS PLANNING</span><h2>Your week, thoughtfully planned</h2>
+        <p>21 meal suggestions from your recipes, matched to your pantry.</p></div>
+      <button type="button" className="kswg-primary" onClick={() => setOpen(true)}>
+        <Sparkles size={18} aria-hidden="true" /> Generate My Week
+      </button>
+    </div>
+    {open && <WeekPreview key={start} start={start} householdSize={householdSize}
+      onClose={() => setOpen(false)} onSaved={onSaved} onNotify={onNotify} />}
+  </>;
+}
+
+function WeekPreview({ start, householdSize, onClose, onSaved, onNotify }) {
+  const [preview, setPreview] = useState(null);
+  const [foodType, setFoodType] = useState('any');
+  const [exclude, setExclude] = useState('');
+  const [maxMinutes, setMaxMinutes] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [working, setWorking] = useState('generate');
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const sequence = useRef(0);
+  const controller = useRef(null);
+  const dialog = useRef(null);
+  const closeButton = useRef(null);
+  const saving = working === 'save';
+  const preferences = () => ({ food_type: foodType,
+    exclude: exclude.split(',').map(value => value.trim()).filter(Boolean),
+    max_minutes: maxMinutes === '' ? null : Number(maxMinutes) });
+
+  useEffect(() => {
+    const previous = document.activeElement;
+    closeButton.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      controller.current?.abort();
+      document.body.style.overflow = previousOverflow;
+      previous?.focus?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    generate();
+    // The modal's start-date key creates one initial request per selected week.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function focusTrap(event) {
+    if (event.key === 'Escape' && !saving) { event.preventDefault(); onClose(); return; }
+    if (event.key !== 'Tab') return;
+    const controls = [...dialog.current.querySelectorAll('button,input,select,textarea,a[href]')]
+      .filter(element => !element.matches(':disabled') && element.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
+
+  function changed(setter, value) {
+    setter(value); setDirty(true); setConfirmed(false); setError('');
+  }
+
+  async function generate() {
+    controller.current?.abort();
+    const active = new AbortController();
+    controller.current = active;
+    const seed = ++sequence.current;
+    setWorking('generate'); setError(''); setConfirmed(false);
+    try {
+      const result = await api('/plan/suggestions', { method: 'POST', signal: active.signal,
+        body: JSON.stringify({ start, preferences: preferences(), seed }) });
+      if (active.signal.aborted) return;
+      setPreview(result); setDirty(false);
+    } catch (err) {
+      if (!active.signal.aborted) { setError(err.message || 'Could not generate this week. Try again.'); setDirty(true); }
+    } finally { if (!active.signal.aborted) setWorking(''); }
+  }
+
+  async function replace(meal) {
+    const active = new AbortController(); controller.current = active;
+    setWorking(`${meal.meal_date}-${meal.meal_type}`); setError(''); setConfirmed(false);
+    try {
+      const result = await api('/plan/suggestions/replace', { method: 'POST', signal: active.signal,
+        body: JSON.stringify({ start, preferences: preferences(), seed: ++sequence.current,
+          expected_version: preview.expected_version, meals: payloadMeals(preview.meals),
+          target_date: meal.meal_date, target_type: meal.meal_type }) });
+      if (!active.signal.aborted) setPreview(current => ({ ...current, ...result }));
+    } catch (err) {
+      if (!active.signal.aborted) setError(`${err.message || 'Could not replace this meal.'} Your preview has not changed.`);
+    } finally { if (!active.signal.aborted) setWorking(''); }
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    if (!confirmed || dirty || working || !preview || saved) return;
+    setWorking('save'); setError('');
+    try {
+      const result = await api('/plan/week', { method: 'PUT', body: JSON.stringify({ start,
+        preferences: preferences(), expected_version: preview.expected_version,
+        meals: payloadMeals(preview.meals), confirmed: true, replace_existing: true }) });
+      setSaved(result); setConfirmed(false);
+      try {
+        const refreshed = await onSaved?.();
+        if (refreshed === false) setRefreshFailed(true);
+      } catch { setRefreshFailed(true); }
+      onNotify?.('Weekly plan saved. Ingredient requirements and Shopping have been recalculated.');
+    } catch (err) {
+      setError(`${err.message || 'Could not save this week.'} If the connection was interrupted, refresh to check whether the week was saved before trying again.`);
+      setConfirmed(false);
+    } finally { setWorking(''); }
+  }
+
+  const days = [...new Set(preview?.meals.map(meal => meal.meal_date) || [])];
+  const locked = preview?.meals.filter(meal => meal.locked).length || 0;
+
+  return <div className="kswg-backdrop" onKeyDown={focusTrap}>
+    <section ref={dialog} className="kswg-dialog" role="dialog" aria-modal="true" aria-labelledby="kswg-title" aria-describedby="kswg-description">
+      <header className="kswg-header">
+        <div><span className="kswg-eyebrow">SMART AUTOMATED PLANNING</span><h2 id="kswg-title">Your suggested week <span aria-hidden="true">🌿</span></h2>
+          <p id="kswg-description">{prettyDate(start)} · 7 days · 21 meals · {preview?.household_size || householdSize} people by default</p></div>
+        <button ref={closeButton} type="button" className="kswg-icon-button" disabled={saving} onClick={onClose} aria-label="Close weekly suggestions"><X size={22} /></button>
+      </header>
+      <div className="kswg-body" aria-busy={Boolean(working)}>
+        <p className="kswg-explainer">Suggestions use your recipe library, usable pantry stock, cooking time and variety. Cooked meals stay in place. Nothing changes until you confirm and save.</p>
+        {!saved && <fieldset className="kswg-preferences" disabled={Boolean(working)}>
+          <legend>Plan preferences</legend>
+          <label>Food preference<select value={foodType} onChange={event => changed(setFoodType, event.target.value)}>
+            <option value="any">Any recipe</option><option value="vegetarian">Vegetarian (no eggs)</option>
+          </select></label>
+          <label>Maximum cooking time<select value={maxMinutes} onChange={event => changed(setMaxMinutes, event.target.value)}>
+            <option value="">Any time</option><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option>
+          </select></label>
+          <label className="kswg-wide">Exclude ingredients<input value={exclude} maxLength={500} placeholder="e.g. peanuts, onion" onChange={event => changed(setExclude, event.target.value)} />
+            <small>Comma-separated; checked against recorded ingredients and supported aliases.</small></label>
+        </fieldset>}
+        {error && <p role="alert" className="kswg-error"><AlertTriangle size={18} aria-hidden="true" />{error}</p>}
+        {saved && <div role="status" className="kswg-success"><CheckCircle2 size={22} aria-hidden="true" /><div><strong>Your weekly plan is saved</strong>
+          <p>{saved.saved_count} meals saved · {saved.kept_completed} cooked meals kept.</p>
+          {refreshFailed && <p>Saved successfully, but the screen could not refresh. Reload KitchenSync to see the saved plan and current Shopping needs.</p>}</div></div>}
+        {!saved && <div className="kswg-preview-toolbar"><div><strong>Seven-day preview</strong><p>{dirty ? 'Preferences changed. Regenerate before saving.' : `${locked} cooked meals protected`}</p></div>
+          <button type="button" className="kswg-secondary" disabled={Boolean(working)} onClick={generate}>
+            {working === 'generate' ? <LoaderCircle className="kswg-spin" size={16} /> : <RefreshCw size={16} />} {dirty ? 'Update suggestions' : 'Regenerate week'}
+          </button></div>}
+        {working === 'generate' && <p className="kswg-loading" role="status"><LoaderCircle className="kswg-spin" size={20} /> Matching recipes to your week…</p>}
+        {preview && <>
+          {preview.notices.length > 0 && <div className="kswg-notices">{preview.notices.map(notice => <p key={notice}>{notice}</p>)}</div>}
+          <div className={`kswg-days ${dirty ? 'kswg-stale' : ''}`}>
+            {days.map(day => <section key={day} className="kswg-day" aria-label={prettyDate(day, { weekday: 'long', day: 'numeric', month: 'short' })}>
+              <h3>{prettyDate(day, { weekday: 'long', day: 'numeric', month: 'short' })}</h3>
+              {TYPES.map(kind => {
+                const meal = preview.meals.find(item => item.meal_date === day && item.meal_type === kind);
+                const replacing = working === `${day}-${kind}`;
+                return <article key={kind} className={`kswg-meal ${meal.locked ? 'kswg-locked' : ''}`}>
+                  <span className="kswg-food" aria-hidden="true">{ICONS[kind]}</span>
+                  <div className="kswg-meal-info"><span className="kswg-meal-type">{kind}{meal.locked ? ' · Cooked, kept' : ''}</span>
+                    <h4>{meal.recipe_name}</h4><p><Clock3 size={13} aria-hidden="true" />{meal.minutes ? `${meal.minutes} min` : 'Time unavailable'} <UsersRound size={13} aria-hidden="true" />{meal.eaters} people</p></div>
+                  {!saved && !meal.locked && <button type="button" className="kswg-replace" disabled={Boolean(working) || dirty} onClick={() => replace(meal)}
+                    aria-label={`Replace ${day} ${kind}`} title="Suggest a different recipe">{replacing ? <LoaderCircle className="kswg-spin" size={17} /> : <RefreshCw size={17} />}<span>Replace</span></button>}
+                </article>;
+              })}
+            </section>)}
+          </div>
+          <details className="kswg-shopping"><summary>{(saved?.audit || preview.audit).shopping.length} ingredients to buy for this plan</summary>
+            <p>Stock is allocated once, in meal order, using existing expiry and serving rules. Planning does not deduct Pantry stock.</p>
+            {(saved?.audit || preview.audit).shopping.length ? <ul>{(saved?.audit || preview.audit).shopping.map(item =>
+              <li key={item.name}><span>{item.name}</span><strong>{item.missing} {item.unit}</strong></li>)}</ul> : <p>All open meals have enough tracked usable ingredients.</p>}
+          </details>
+        </>}
+      </div>
+      <form className="kswg-footer" onSubmit={save}>
+        {!saved && preview && <>
+          {preview.replace_count > 0 && <p className="kswg-replace-warning"><AlertTriangle size={16} aria-hidden="true" /> Saving may replace {preview.replace_count} existing uncooked meal selections in this week. Cooked meals are protected.</p>}
+          <label className="kswg-confirm"><input type="checkbox" checked={confirmed} disabled={Boolean(working) || dirty}
+            onChange={event => setConfirmed(event.target.checked)} />I reviewed these 21 meals and confirm saving this week, including replacement of existing uncooked selections.</label>
+        </>}
+        <div className="kswg-actions"><button type="button" className="kswg-secondary" disabled={saving} onClick={onClose}>{saved ? 'Close' : 'Cancel'}</button>
+          {!saved && <button type="submit" className="kswg-primary" disabled={!preview || !confirmed || dirty || Boolean(working)}>
+            {saving ? <LoaderCircle className="kswg-spin" size={17} /> : <CheckCircle2 size={17} />} {saving ? 'Saving week…' : 'Confirm & Save Weekly Plan'}
+          </button>}</div>
+      </form>
+    </section>
+  </div>;
+}

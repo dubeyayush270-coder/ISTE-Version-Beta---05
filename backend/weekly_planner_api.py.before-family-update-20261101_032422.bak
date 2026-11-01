@@ -1,0 +1,186 @@
+"""Preview-only suggestions and an atomic, conflict-checked weekly plan save."""
+from datetime import date
+from hashlib import sha256
+import json
+import sqlite3
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field, StrictBool
+
+from db import connection
+from weekly_planner import PlanningError, eligible, generate_week, ordered_slots, replace_meal, slot_key
+
+router = APIRouter(prefix="/api/plan", tags=["Weekly planning"])
+
+
+class Preferences(BaseModel):
+    food_type: Literal["any", "vegetarian"] = "any"
+    exclude: list[str] = Field(default_factory=list, max_length=30)
+    max_minutes: int | None = Field(default=None, ge=1, le=240)
+
+
+class WeekRequest(BaseModel):
+    start: date
+    preferences: Preferences = Field(default_factory=Preferences)
+    seed: int = Field(default=0, ge=0, le=1_000_000_000)
+
+
+class SuggestedMeal(BaseModel):
+    meal_date: date
+    meal_type: Literal["breakfast", "lunch", "dinner"]
+    recipe_id: int
+    eaters: int = Field(ge=1, le=30)
+
+
+class PreviewRequest(WeekRequest):
+    meals: list[SuggestedMeal] = Field(min_length=21, max_length=21)
+    expected_version: str = Field(min_length=64, max_length=64)
+
+
+class ReplaceRequest(PreviewRequest):
+    target_date: date
+    target_type: Literal["breakfast", "lunch", "dinner"]
+
+
+class SaveRequest(PreviewRequest):
+    confirmed: StrictBool = False
+    replace_existing: StrictBool = False
+
+
+def helpers():
+    # Import after app startup to avoid a circular import; shared calculations
+    # and recipe/plan formats remain owned by the existing application.
+    from app import plans, planning_stock, recipe_list, stock_list
+    return plans, planning_stock, recipe_list, stock_list
+
+
+def settings_size(c):
+    return c.execute("SELECT household_size FROM settings WHERE id=1").fetchone()[0]
+
+
+def version(existing, household_size):
+    rows = [{key: meal.get(key) for key in
+             ("id", "meal_date", "meal_type", "recipe_id", "eaters", "completed_at")}
+            for meal in existing]
+    rows.sort(key=slot_key)
+    return sha256(json.dumps([household_size, rows], sort_keys=True).encode()).hexdigest()
+
+
+def preferences_dict(data):
+    preferences = data.preferences.model_dump()
+    if any(not item.strip() or len(item) > 80 for item in preferences["exclude"]):
+        raise HTTPException(422, "Each excluded ingredient must contain 1–80 characters.")
+    preferences["exclude"] = [item.strip() for item in preferences["exclude"]]
+    return preferences
+
+
+def week_slots(start):
+    try:
+        return ordered_slots(start)
+    except OverflowError:
+        raise HTTPException(422, "The selected week is outside the supported date range.")
+
+
+def load(c, start):
+    plans, planning_stock, recipe_list, stock_list = helpers()
+    existing = plans(c, start, 7)
+    size = settings_size(c)
+    return existing, size, recipe_list(c), planning_stock(stock_list(c), c), version(existing, size)
+
+
+def normalized_meals(data, existing, recipes, preferences):
+    slots = week_slots(data.start)
+    incoming = [{**meal.model_dump(), "meal_date": meal.meal_date.isoformat(), "completed_at": None}
+                for meal in data.meals]
+    if len({slot_key(meal) for meal in incoming}) != 21 or {slot_key(meal) for meal in incoming} != set(slots):
+        raise HTTPException(422, "Supply exactly one breakfast, lunch and dinner for each day of this week.")
+    by_recipe = {recipe["id"]: recipe for recipe in recipes}
+    saved = {slot_key(meal): meal for meal in existing}
+    for meal in incoming:
+        old = saved.get(slot_key(meal))
+        recipe = by_recipe.get(meal["recipe_id"])
+        if recipe is None:
+            raise HTTPException(422, "A suggested recipe no longer exists. Generate a new preview.")
+        if old and old.get("completed_at"):
+            if (meal["recipe_id"], meal["eaters"]) != (old["recipe_id"], old["eaters"]):
+                raise HTTPException(409, "Cooked meals cannot be replaced or resized.")
+            meal["completed_at"] = old["completed_at"]
+        elif not eligible(recipe, meal["meal_type"], preferences):
+            raise HTTPException(422, "A suggested meal conflicts with its category or the selected preferences.")
+    return sorted(incoming, key=lambda meal: slots.index(slot_key(meal)))
+
+
+@router.post("/suggestions")
+def suggest_week(data: WeekRequest):
+    week_slots(data.start)
+    preferences = preferences_dict(data)
+    with connection() as c:
+        c.execute("BEGIN")
+        existing, size, recipes, stock, current_version = load(c, data.start)
+        try:
+            result = generate_week(data.start, recipes, stock, existing, size, preferences, data.seed)
+        except PlanningError as error:
+            raise HTTPException(422, str(error))
+    return {**result, "start": data.start.isoformat(), "expected_version": current_version,
+            "existing_count": len(existing), "replace_count": sum(not meal.get("completed_at") for meal in existing),
+            "household_size": size, "mode": "local-smart-planning"}
+
+
+@router.post("/suggestions/replace")
+def replace_suggestion(data: ReplaceRequest):
+    week_slots(data.start)
+    preferences = preferences_dict(data)
+    with connection() as c:
+        c.execute("BEGIN")
+        existing, size, recipes, stock, current_version = load(c, data.start)
+        if current_version != data.expected_version:
+            raise HTTPException(409, "The saved plan or household size changed. Generate a fresh preview.")
+        incoming = normalized_meals(data, existing, recipes, preferences)
+        try:
+            result = replace_meal(data.start, incoming, (data.target_date.isoformat(), data.target_type),
+                                  recipes, stock, preferences, data.seed)
+        except PlanningError as error:
+            raise HTTPException(422, str(error))
+    return result
+
+
+@router.put("/week")
+def save_week(data: SaveRequest):
+    if not data.confirmed:
+        raise HTTPException(422, "Review and confirm this weekly plan before saving.")
+    week_slots(data.start)
+    preferences = preferences_dict(data)
+    try:
+        with connection() as c:
+            c.execute("BEGIN IMMEDIATE")
+            existing, size, recipes, stock, current_version = load(c, data.start)
+            if current_version != data.expected_version:
+                raise HTTPException(409, "The saved plan or household size changed. Nothing was saved; generate a fresh preview.")
+            incoming = normalized_meals(data, existing, recipes, preferences)
+            changes_existing = any(not old.get("completed_at") and
+                                   (old["recipe_id"], old["eaters"]) != (meal["recipe_id"], meal["eaters"])
+                                   for old in existing for meal in incoming if slot_key(old) == slot_key(meal))
+            if changes_existing and not data.replace_existing:
+                raise HTTPException(422, "Confirm replacement of the existing meal selections before saving.")
+            kept = 0
+            for meal in incoming:
+                if meal.get("completed_at"):
+                    kept += 1
+                    continue
+                # Same columns and request values as PUT /plan/{date}/{type}.
+                # One transaction prevents partial weeks and concurrent overwrites.
+                c.execute("""INSERT INTO meal_plan(meal_date,meal_type,recipe_id,eaters) VALUES(?,?,?,?)
+                    ON CONFLICT(meal_date,meal_type) DO UPDATE SET
+                    recipe_id=excluded.recipe_id,eaters=excluded.eaters
+                    WHERE meal_plan.completed_at IS NULL""",
+                    (meal["meal_date"], meal["meal_type"], meal["recipe_id"], meal["eaters"]))
+            from core import audit_meals
+            audit = audit_meals(incoming, {recipe["id"]: recipe for recipe in recipes}, stock)
+            plans, _, _, _ = helpers()
+            saved = plans(c, data.start, 7)
+            result = {"ok": True, "saved_count": 21 - kept, "kept_completed": kept,
+                      "meals": saved, "audit": audit, "expected_version": version(saved, size)}
+    except sqlite3.Error:
+        raise HTTPException(500, "The weekly plan could not be saved. All changes were rolled back; no meals were saved.")
+    return result
