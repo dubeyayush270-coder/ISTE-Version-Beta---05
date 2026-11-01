@@ -1,63 +1,302 @@
-/* KitchenSync judge-review UI polish. Functional components keep their original styles. */
-:root { --ks-ui-focus:#287b50; }
-button:focus-visible, summary:focus-visible, a:focus-visible { outline:3px solid #5ba57c; outline-offset:3px; }
-.k-mobile-top-action { min-width:42px; min-height:44px; border-radius:12px; display:grid; place-items:center; color:#276f50; }
-.k-mobile-top-action:hover { background:#e5f2e8; }
-.k-modal-backdrop { z-index:140; }
-.k-modal { max-height:calc(100dvh - 24px); overscroll-behavior:contain; }
-.k-modal-back { min-height:44px; flex-shrink:0; }
-.ks-shopping-extra { margin-top:18px; border:1px solid #cfe5d6; border-radius:17px; background:#eef7ef; overflow:hidden; }
-.ks-shopping-extra > summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; padding:17px 16px; color:#286b49; font-size:15px; line-height:1.3; font-weight:800; cursor:pointer; }
-.ks-shopping-extra > summary span { font-size:12px; color:#617b67; font-weight:500; }
-.ks-shopping-extra[open] > summary { border-bottom:1px solid #cfe5d6; }
-.ks-shopping-extra > section { margin:0 !important; border:0; border-radius:0; box-shadow:none; background:transparent; }
-.kspantry-more-actions { display:block; width:100%; }
-.kspantry-more-actions > summary { color:#356e50; font-size:13px; font-weight:750; display:inline-flex; align-items:center; min-height:44px; cursor:pointer; padding:5px 12px; border-radius:10px; background:#f0f6f0; }
-.kspantry-more-actions[open] { width:100%; }
-.kspantry-action-row button { min-height:44px; }
-.kspantry-primary-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:20px; }
-.kspantry-primary-actions .kspantry-manage { margin:0; min-width:0; justify-content:center; padding:12px 7px; font-size:13px; white-space:normal; }
-@media (max-width:767px) {
-  body { font-size:15px; }
-  .mobile-bottom-nav { z-index:30; }
-  .mobile-nav-item { min-height:56px; font-size:12px; font-weight:700; }
-  main { padding-bottom:calc(112px + env(safe-area-inset-bottom)) !important; }
-  .k-button, .kswg-primary, .kswg-secondary, .ks-shopping-btn { min-height:44px; font-size:14px; white-space:normal; text-align:center; }
-  .k-field { min-height:46px; font-size:16px; }
-  .k-label { font-size:14px; }
-  .ks-shopping-header p, .ks-shopping-toolbar p, .ks-shopping-check, .ks-shopping-checked-label { font-size:14px; }
-  .ks-shopping-stat span, .ks-shopping-subline, .ks-shopping-footer, .ks-shopping-form-grid label { font-size:13px; }
-  .ks-shopping-name { font-size:16px; }
-  .ks-shopping-quantity small { font-size:12px; }
-  .ksmp-muted, .ksmp-weekbar strong, .ksmp-disclaimer, .ksmp-meta, .ksmp-meal-info small { font-size:13px; }
-  .ksmp-meal-info strong { font-size:15px; }
-  .ksmp-day span { font-size:12px; }
-  .ks-subtitle, .ks-date, .ks-info-row small, .ks-stat-card small, .ks-meal-details span, .ks-meal-details small, .ks-footer-note { font-size:12px; }
-  .ks-info-row strong, .ks-meal-details strong, .ks-shopping-action { font-size:14px; }
-  .ks-freshness-note { font-size:14px; }
-  .ks-family-intro p, .ks-family-info, .ks-family-mode, .ks-family-date-caption, .ks-family-attendee { font-size:13px; }
-  .ks-family-diet-label, .ks-family-diet-note, .ks-family-serving-top p { font-size:13px; }
-  .ks-family-summary span, .ks-family-subhead span { font-size:12px; }
-  .ks-family-serving-panel h4 { font-size:16px; }
-  .kswg-body { min-height:0; padding-bottom:20px; -webkit-overflow-scrolling:touch; }
-  .kswg-dialog { min-height:0; }
-  .kswg-explainer, .kswg-header p, .kswg-preferences label, .kswg-meal h4, .kswg-meal-info p, .kswg-shopping, .kswg-confirm { font-size:13px; }
-  .kswg-preview-toolbar p, .kswg-meal-type, .kswg-notices { font-size:12px; }
-  .kswg-header { flex-shrink:0; }
-  .kswg-meal { gap:11px; padding:13px 11px; }
-  .kswg-day h3 { font-size:16px; }
-  .kswg-replace { font-size:12px; min-width:53px; }
-  .ks-price-heading p, .ks-price-context, .ks-price-picker, .ks-price-fields label, .ks-price-notice, .ks-price-error, .ks-price-disclaimer { font-size:13px; }
-  .ks-price-primary, .ks-price-quiet { font-size:14px; }
-  .ks-price-offer-values small, .ks-price-source { font-size:12px; }
-  .ks-price-offer-actions button { font-size:13px; min-height:44px; }
-  .kspantry-stats span, .kspantry-list-heading p { font-size:12px; }
-  .k-modal-backdrop { padding:9px; }
-  .k-modal { width:100%; max-height:calc(100dvh - 18px); border-radius:18px; }
+/* Shared finishing layer: mint surfaces, quiet depth and reference-inspired pills. */
+:root {
+  --ks-bg: #e5efe8;
+  --ks-card: #ffffff;
+  --ks-text: #202f28;
+  --ks-muted: #5d7265;
+  --ks-primary: #347b18;
+  --ks-accent: #d1e8b8;
+  --ks-border: #d8e5db;
+  --ks-space-1: 4px;
+  --ks-space-2: 8px;
+  --ks-space-3: 12px;
+  --ks-space-4: 16px;
+  --ks-space-5: 24px;
+  --ks-radius: 24px;
+  --ks-control-radius: 14px;
+  --ks-shadow: 3px 5px 14px #34593e08, -2px -2px 8px #ffffff70;
+  --ks-ui-focus: #347b18;
+  --neo-bg: var(--ks-bg);
+  --neo-panel: var(--ks-card);
+  --neo-ink: var(--ks-text);
+  --neo-muted: var(--ks-muted);
+  --neo-brand: var(--ks-primary);
+  --neo-raised: var(--ks-shadow);
+  --neo-raised-small: 1px 3px 8px #34593e0a;
+  --neo-inset: inset 2px 2px 5px #42694e0a, inset -2px -2px 5px #ffffff8c;
 }
-@media (prefers-reduced-motion:reduce) { .ks-soft-card, .ks-ai-action, .k-button { transition:none !important; } }
 
-/* Make navigation affordances obvious without adding duplicate action buttons. */
-.ks-calendar-btn { display:grid; place-items:center; }
-.ks-shopping-extra > summary::after, .kspantry-more-actions > summary::after { content:'›'; color:#2c7953; font-size:22px; line-height:1; margin-left:auto; display:inline-block; transition:transform .15s ease; }
-.ks-shopping-extra[open] > summary::after, .kspantry-more-actions[open] > summary::after { transform:rotate(90deg); }
+html { background: var(--ks-bg); scroll-padding-block: 90px 112px; }
+body { color: var(--ks-text); background: var(--ks-bg); font-size: 15px; line-height: 1.5; }
+button, input, select, textarea { font-family: inherit; line-height: 1.4; }
+button, summary, a { -webkit-tap-highlight-color: transparent; }
+button { max-width: 100%; }
+button svg, .k-button svg { flex-shrink: 0; }
+input, select, textarea, fieldset { min-width: 0; }
+input, select, textarea { scroll-margin-block: 96px; }
+input[type=checkbox], input[type=radio] { accent-color: var(--ks-primary); }
+h1, h2, h3, h4, strong, button { overflow-wrap: anywhere; }
+h1, h2, h3 { letter-spacing: -.025em; }
+button:focus-visible, summary:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #609044; outline-offset: 3px;
+}
+input::placeholder, textarea::placeholder { color: #687c6f; opacity: 1; }
+
+/* One app shell and one set of content insets. */
+.ks-app-header {
+  height: auto; min-height: 72px; gap: 12px;
+  padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 8px;
+  background: #e5efe8ed !important; box-shadow: none !important;
+  border-bottom-color: #ffffff80 !important;
+}
+.ks-app-header > div { min-width: 0; gap: 8px; }
+.ks-app-header > div:first-child { flex: 1; }
+.ks-app-header > div:last-child { flex-shrink: 0; }
+.ks-app-header > div:first-child > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ks-app-header button { min-height: 44px; flex-shrink: 0; }
+.ks-app-header button[aria-label='Household settings'] { border-radius: 24px; background: #ffffff80; }
+.k-mobile-top-action { min-width: 44px; min-height: 44px; border: 1px solid #ffffffbd; border-radius: 50%; display: grid; place-items: center; color: var(--ks-text); }
+.k-mobile-top-action:hover { background: #fff; }
+.ks-main { padding-block: var(--ks-space-5); }
+.ks-app-footer { color: var(--ks-muted); font-size: 12px; line-height: 1.6; }
+.ks-toast { width: max-content; max-width: min(28rem, calc(100vw - 24px)); }
+.ks-section-title { margin-bottom: var(--ks-space-5); }
+.ks-section-title h1 { font-size: clamp(24px, 3vw, 30px); }
+
+/* Consistent surfaces and controls without changing component behavior. */
+.k-card, .ks-soft-card, .ksmp-meal, .ksmp-stock, .kspantry-stat, .kspantry-item,
+.ks-shopping-stat, .ks-shopping-item, .ksrh-card, .ksrh-panel, .ks-price,
+.ks-family-member, .ks-family-meal, .kscook-card, .kscook-serving-card,
+.ktc-card, .ktc-checkpoint, .ktc-upcoming, .ktc-finished {
+  background: var(--ks-card); border: 1px solid #ffffffd9;
+  border-radius: var(--ks-radius); box-shadow: var(--ks-shadow);
+}
+.k-button, .kswg-primary, .kswg-secondary, .ks-shopping-btn,
+.ksrh-primary, .ksrh-secondary, .ksrh-back, .ks-price-primary, .ks-price-quiet {
+  min-height: 44px; border-radius: var(--ks-control-radius);
+  font-size: 14px; font-weight: 650; line-height: 1.4;
+  white-space: normal; text-align: center;
+}
+.k-primary, .kswg-primary, .ksrh-primary, .ks-shopping-btn-primary,
+.ks-price-primary, .ks-family-button-primary, .ks-family-new-row button,
+.kspantry-manage, .ksmp-shop-button, .kscook-next, .ktc-primary, .ktc-ready {
+  background: var(--ks-primary); color: #fff; box-shadow: none;
+}
+.k-primary:hover:not(:disabled) { background: #286313; box-shadow: none; }
+.k-light, .k-outline { border: 1px solid var(--ks-border); box-shadow: none; background: #f4f8f3; }
+.k-field { min-height: 46px; border-radius: var(--ks-control-radius); background: #f3f7f2; border-color: var(--ks-border); box-shadow: var(--neo-inset); }
+.k-label { font-size: 13px; color: #48634f; line-height: 1.5; }
+.k-tag { white-space: normal; text-align: center; font-size: 12px; box-shadow: none; }
+.k-nav { min-height: 44px; }
+.k-nav.is-active { background: var(--ks-accent); color: #254c20; box-shadow: none; }
+
+/* Dashboard: a small welcome, strong numbers and a lime daily overview. */
+.ks-mobile-dashboard { --ks-muted: #5d7265; background: transparent; min-height: 0; padding: 0; }
+.ks-mobile-heading, .ksmp-heading, .kspantry-heading, .ks-shopping-header, .ksrh-top { margin-bottom: var(--ks-space-5); gap: 12px; }
+.ks-mobile-heading h1, .ksmp-heading h1, .kspantry-heading h1, .ks-shopping-header h1, .ksrh-top h1 { font-size: 28px; line-height: 1.2; font-weight: 750; }
+.ks-date { color: var(--ks-muted); }
+.ks-calendar-btn, .ksmp-heading-icon, .kspantry-heading-icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; background: #ffffff85; border: 1px solid #fff; border-radius: 50%; box-shadow: none; }
+.ks-overview { background: var(--ks-accent); padding: 18px 16px; margin-bottom: 16px; }
+.ks-status-pill { background: #ffffffa6; color: #305b27; font-size: 12px; }
+.ks-progress-layout { margin-top: 16px; gap: 14px; }
+.ks-progress-ring { width: 112px; height: 112px; padding: 9px; background: conic-gradient(var(--ks-primary) var(--progress), #ffffff90 var(--progress)); }
+.ks-progress-inner { background: var(--ks-accent); }
+.ks-progress-inner strong, .ks-stat-card strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.ks-progress-inner span { font-size: 12px; color: #4b6346; }
+.ks-info-row small { color: #4f684a; }
+.ks-stats-grid { gap: 12px; margin-bottom: 20px; }
+.ks-stat-card { min-height: 116px; padding: 16px; }
+.ks-stat-icon { margin-bottom: 0; }
+.ks-meal-list, .ksmp-meals, .kspantry-list, .ks-shopping-list { gap: 12px; }
+.ks-meal-details strong { white-space: normal; overflow: visible; line-height: 1.4; }
+.ks-add-meal, .ksmp-add, .ksmp-completed { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
+.ks-meal-badge { font-size: 12px; flex-shrink: 0; }
+.ks-section-heading button { min-height: 44px; }
+.ks-ai-action, .ksrh-assistant { background: #1d2922; box-shadow: none; padding: 16px; border-radius: var(--ks-radius); }
+
+/* Planner, pantry and shopping use the same compact rhythm. */
+.ksmp { --planner-muted: var(--ks-muted); padding: 0; }
+.kspantry { --pantry-muted: var(--ks-muted); padding: 0; }
+.ksmp-weekbar { margin-bottom: 16px; }
+.ksmp-weekbar > button { width: 44px; height: 44px; display: grid; place-items: center; box-shadow: none; background: #fff; border-radius: 50%; }
+.ksmp-this-week { min-height: 32px; }
+.ksmp-days { margin-bottom: 20px; }
+.ksmp-day { min-height: 64px; box-shadow: none; border: 1px solid #ffffff90; }
+.ksmp-day.active { background: var(--ks-primary); box-shadow: none; }
+.ksmp-day span { font-size: 12px; }
+.ksmp-meal { min-height: 96px; padding: 14px 12px; }
+.ksmp-food-icon, .ks-meal-emoji, .kspantry-food-icon { width: 48px; height: 48px; font-size: 25px; border-radius: 16px; }
+.ksmp-meta span { font-size: 12px; }
+.ksmp-calories { margin-block: 16px 20px; padding: 16px; }
+.kswg-launch { padding: 18px; margin-bottom: 20px; border-radius: var(--ks-radius); background: #dbeccf; box-shadow: none; }
+.kswg-meal { gap: 8px; }
+.kswg-meal-info { flex-basis: 100px; }
+.kswg-header h2 { font-size: 22px; }
+.kswg-editor select, .kswg-source-row select { width: 100%; max-width: 100%; }
+.kswg-why summary, .kswg-shopping summary, .kswg-nutrition-summary summary, .kswg-steps summary { min-height: 44px; display: flex; align-items: center; }
+.kswg-preview-toolbar, .kswg-online-heading { flex-wrap: wrap; }
+.kswg-online-heading > div { min-width: 0; flex: 1 1 150px; }
+.kswg-actions { flex-wrap: wrap; }
+.kswg-actions > button { flex: 1 1 120px; }
+.kswg-ingredient strong, .kswg-ingredient small { overflow-wrap: anywhere; }
+.kswg-result img { flex-shrink: 0; }
+.kspantry-stats { margin-bottom: 16px; }
+.kspantry-stat { gap: 7px; padding-block: 14px; }
+.kspantry-filters { margin-bottom: 12px; }
+.kspantry-filters button { min-height: 44px; box-shadow: none; }
+.kspantry-status { font-size: 12px; max-width: 82px; line-height: 1.4; }
+.kspantry-item-info h3 { font-size: 15px; }
+.kspantry-item-info small { font-size: 12px; color: #8a5e24; }
+.kspantry-more-actions { display: block; width: 100%; }
+.kspantry-more-actions > summary { color: #356e50; font-size: 13px; font-weight: 650; display: flex; align-items: center; min-height: 44px; cursor: pointer; padding: 5px 12px; border-radius: 12px; background: #eef5ed; }
+.kspantry-action-row { flex-wrap: wrap; }
+.kspantry-action-row button { min-height: 44px; }
+.kspantry-primary-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 16px; }
+.kspantry-primary-actions .kspantry-manage { margin: 0; min-width: 0; justify-content: center; padding: 12px 8px; font-size: 14px; white-space: normal; }
+.ks-shopping-item { padding: 14px; }
+.ks-shopping-item-main > *, .ks-shopping-stat { min-width: 0; }
+.ks-shopping-check { min-height: 44px; }
+.ks-shopping-quantity { flex-shrink: 1; min-width: 72px; overflow-wrap: anywhere; }
+.ks-shopping-stat strong { font-variant-numeric: tabular-nums; }
+.ks-shopping-extra { margin-top: 18px; border: 1px solid var(--ks-border); border-radius: 18px; background: #f6faf4; overflow: hidden; }
+.ks-shopping-extra > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 16px; color: #2c6444; font-size: 15px; line-height: 1.4; font-weight: 700; cursor: pointer; }
+.ks-shopping-extra > summary span { font-size: 13px; color: var(--ks-muted); font-weight: 500; }
+.ks-shopping-extra[open] > summary { border-bottom: 1px solid var(--ks-border); }
+.ks-shopping-extra > section { margin: 0 !important; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.ks-shopping-extra > summary::after, .kspantry-more-actions > summary::after { content: '›'; font-size: 22px; line-height: 1; margin-left: auto; }
+.ks-shopping-extra[open] > summary::after, .kspantry-more-actions[open] > summary::after { transform: rotate(90deg); }
+
+/* Recipe cards keep every action, with aligned rows and readable mobile text. */
+.ksrh { padding-bottom: 0; }
+.ksrh-tabs { flex-wrap: wrap; overflow: visible; gap: 6px; padding-bottom: 8px; margin-bottom: 12px; }
+.ksrh-tabs button { flex: 1 1 auto; font-size: 13px; font-weight: 650; background: #ffffff80; border: 1px solid #fff; }
+.ksrh-tabs button.active { background: var(--ks-primary); border-color: var(--ks-primary); }
+.ksrh-search, .kspantry-search { min-height: 48px; border-radius: 28px; border: 1px solid #fff; background: #ffffff45; box-shadow: none; }
+.ksrh-search input, .kspantry-search input { min-height: 44px; }
+.ksrh-search button, .kspantry-search button { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.ksrh-search:focus-within, .kspantry-search:focus-within { outline: 2px solid #609044; outline-offset: 2px; }
+.ksrh-filters { gap: 8px; margin-bottom: 16px; }
+.ksrh-filters select { flex: 1 1 130px; max-width: 100%; width: 0; }
+.ksrh-filters select, .ksrh-filters input { min-height: 44px; }
+.ksrh-filters label { font-size: 13px; }
+.ksrh-card { display: flex; flex-direction: column; }
+.ksrh-art { height: 144px; flex-shrink: 0; background: #edf4e7; }
+.ksrh-card-body { display: flex; flex: 1; flex-direction: column; padding: 16px; }
+.ksrh-card h3 { font-size: 17px; font-weight: 750; line-height: 1.4; }
+.ksrh-meta, .ksrh-pantry { font-size: 13px; }
+.ksrh-pantry svg { flex-shrink: 0; }
+.ksrh-details { margin-top: auto; padding-block: 8px; }
+.ksrh-details summary { min-height: 44px; display: flex; align-items: center; }
+.ksrh-actions { align-items: stretch; }
+.ksrh-actions .ksrh-primary { min-width: 0; }
+.ksrh-actions-secondary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.ksrh-actions-secondary button { justify-content: center; min-height: 44px; font-size: 12px; padding: 8px; }
+.ksrh-icon, .ksrh-loved { border-radius: 50%; }
+.ksrh-tagline span { font-size: 12px; }
+.ksrh-ingredient-edit { grid-template-columns: minmax(0,2fr) minmax(0,1fr) 66px 44px; }
+.ksrh-ingredient-edit button { min-height: 44px; }
+.ksrh-editor > button, .ksrh-editor > h2 { align-self: flex-start; }
+.ksrh-editor > button[type=submit] { align-self: stretch; }
+
+/* Flexible dialogs keep headers visible and let the body scroll on short screens. */
+.k-modal-backdrop { z-index: 140; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.k-modal { display: flex; flex-direction: column; max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); border-radius: var(--ks-radius); overflow: hidden; }
+.k-modal > .sticky { position: relative; flex-shrink: 0; align-items: center; background: #fff !important; }
+.k-modal > .sticky h2 { font-size: 19px; line-height: 1.3; }
+.k-modal > div:last-child { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.k-modal-back { min-height: 44px; flex-shrink: 0; }
+.k-modal form > .flex:last-child { flex-wrap: wrap; }
+.kswg-body { min-height: 0; -webkit-overflow-scrolling: touch; }
+.kswg-header { flex-shrink: 0; }
+.kswg-dialog, .kscook-sheet, .ktc-screen { background: var(--ks-bg); }
+.ks-family-member-buttons { flex-wrap: wrap; max-width: 88px; justify-content: flex-end; }
+.ks-family-member-buttons button { width: 40px; min-height: 44px; }
+.ks-family-serving-top { flex-wrap: wrap; }
+.ks-family-new-row input { flex: 1; }
+.ks-family-actions button { justify-content: center; flex: 1 1 130px; white-space: normal; }
+.kscook-header, .ktc-header { gap: 10px; }
+.kscook-header strong, .ktc-header strong { min-width: 0; overflow-wrap: anywhere; }
+.kscook-icon-button, .kscook-counter button, .ktc-header > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; flex-shrink: 0; }
+.kscook-serving-card { flex-wrap: wrap; }
+.kscook-section-heading { flex-wrap: wrap; }
+.kscook-ingredient > * { min-width: 0; overflow-wrap: anywhere; }
+.kscook-ingredient > div { flex-shrink: 0; max-width: 55%; }
+.kscook-counter { margin-left: auto; }
+.kscook-content h1 { font-size: 25px; }
+.kscook-meta span, .kscook-ingredient small, .kscook-voice-hint, .kscook-disclaimer, .kscook-all-steps button p { font-size: 13px; }
+.kscook-voice-actions button { min-height: 44px; font-size: 13px; flex: 1 1 125px; justify-content: center; }
+.kscook-footer button { min-width: 0; padding: 10px 8px; }
+.ktc-instruction { font-size: 17px; line-height: 1.65; color: #3e5b47; }
+.ktc-sound-button, .ktc-help { min-height: 44px; font-size: 13px; }
+.ktc-header > svg { flex-shrink: 0; }
+.ktc-upcoming-step > div { min-width: 0; }
+.ks-expiry-scanner { height: 100dvh; padding-top: env(safe-area-inset-top); }
+.ks-expiry-scanner > div { min-height: 0; overscroll-behavior: contain; }
+.ks-expiry-scanner > header button { min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.ks-expiry-scanner input { min-height: 46px; }
+
+@media (max-width: 1023px) {
+  .ks-main { padding-bottom: 24px !important; }
+  .ks-toast { bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 767px) {
+  .ks-app-header { padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)); min-height: 68px; gap: 6px; }
+  .ks-app-header > div { gap: 4px; }
+  .ks-main { padding: 20px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left)) !important; }
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea,
+  .k-field, .ksrh-search input, .ksrh-filters select, .ksrh-filters input,
+  .ksrh-editor input, .ksrh-editor select, .ksrh-editor textarea,
+  .ks-family input, .ks-family-diet-select, .kswg-preferences input, .kswg-preferences select,
+  .kswg-editor select, .kswg-source-row select, .ks-price-fields input, .ks-price-fields select,
+  .ks-price-picker select, .kspantry-search input { font-size: 16px; }
+  .ksmp-muted, .ksmp-weekbar strong, .ksmp-disclaimer, .ksmp-meta, .ksmp-meal-info small { font-size: 13px; }
+  .ksmp-meal-info strong { font-size: 15px; }
+  .ks-subtitle, .ks-date, .ks-info-row small, .ks-stat-card small, .ks-meal-details span, .ks-meal-details small, .ks-footer-note { font-size: 12px; }
+  .ks-info-row strong, .ks-meal-details strong, .ks-shopping-action { font-size: 14px; }
+  .ks-freshness-note { font-size: 14px; }
+  .ks-shopping-header p, .ks-shopping-toolbar p, .ks-shopping-check, .ks-shopping-checked-label { font-size: 14px; }
+  .ks-shopping-stat span, .ks-shopping-subline, .ks-shopping-footer, .ks-shopping-form-grid label { font-size: 13px; }
+  .ks-shopping-name { font-size: 16px; }
+  .ks-shopping-quantity small { font-size: 12px; color: var(--ks-muted); }
+  .ks-family-intro p, .ks-family-info, .ks-family-mode, .ks-family-date-caption, .ks-family-attendee,
+  .ks-family-diet-label, .ks-family-diet-note, .ks-family-serving-top p { font-size: 13px; }
+  .ks-family-summary span, .ks-family-subhead span { font-size: 12px; }
+  .kswg-header { padding-top: calc(16px + env(safe-area-inset-top)); }
+  .kswg-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,2fr); }
+  .kswg-actions > button { width: 100%; min-width: 0; }
+  .kswg-explainer, .kswg-header p, .kswg-preferences label, .kswg-meal h4, .kswg-meal-info p, .kswg-shopping, .kswg-confirm { font-size: 13px; }
+  .kswg-preview-toolbar p, .kswg-meal-type, .kswg-notices { font-size: 12px; }
+  .kswg-day h3 { font-size: 16px; }
+  .kswg-replace { font-size: 12px; min-width: 53px; }
+  .ks-price-heading p, .ks-price-context, .ks-price-picker, .ks-price-fields label, .ks-price-notice, .ks-price-error, .ks-price-disclaimer { font-size: 13px; }
+  .ks-price-offer-values small, .ks-price-source { font-size: 12px; }
+  .ks-price-offer-actions button { font-size: 13px; min-height: 44px; }
+  .kspantry-stats span, .kspantry-list-heading p, .kspantry-note { font-size: 12px; }
+  .k-modal-backdrop { padding-inline: 8px; }
+  .k-modal { width: 100%; border-radius: 20px; }
+}
+@media (max-width: 479px) {
+  .ksrh-grid { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .ksrh-art { height: 138px; font-size: 52px; }
+  .ksrh-card-body { padding: 16px; }
+  .ksrh-card h3 { font-size: 18px; }
+  .ksrh-actions-secondary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ksrh-ingredient-edit { grid-template-columns: minmax(0,1fr) 68px 64px 44px; gap: 5px; }
+  .ksrh-ingredient-edit input, .ksrh-ingredient-edit select { padding-inline: 6px; }
+  .ksrh-tabs button { flex: 1 1 40%; }
+  .kswg-preferences { grid-template-columns: minmax(0,1fr); padding: 12px; gap: 12px; }
+  .kswg-online-search { flex-wrap: wrap; }
+  .kswg-online-search input { flex-basis: 170px; }
+  .kswg-online-search button { flex-grow: 1 !important; }
+}
+@media (max-height: 600px) and (max-width: 767px) {
+  .kswg-header { padding-block: 10px; }
+  .kswg-header h2 { margin-block: 0; font-size: 19px; }
+  .kswg-footer { max-height: 40dvh; }
+  .ktc-ring { width: 140px; height: 140px; }
+  .ktc-timer { margin-block: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

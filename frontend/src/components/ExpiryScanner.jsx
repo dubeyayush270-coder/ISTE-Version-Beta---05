@@ -348,7 +348,7 @@ export default function ExpiryScanner({
   }
 
   return (
-    <div className="fixed inset-0 z-[800] flex flex-col bg-[#edf3ee] text-[#254b37]">
+    <div className="ks-expiry-scanner fixed inset-0 z-[800] flex flex-col bg-[#edf3ee] text-[#254b37]">
 
       {/* Header */}
       <header className="flex shrink-0 items-center gap-4 bg-[#f8faf7] p-4 shadow-sm">

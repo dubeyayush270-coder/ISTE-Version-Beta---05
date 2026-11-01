@@ -57,6 +57,8 @@ export default function MobileBottomNav({
               active ? "selected" : ""
             }`}
             onClick={() => onNavigate(id)}
+            aria-label={label}
+            title={label}
             aria-current={active ? "page" : undefined}
           >
             <Icon
