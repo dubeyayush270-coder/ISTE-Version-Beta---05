@@ -14,6 +14,8 @@ export default function OnlineRecipeDiscovery({ target, onImported, onClose }) {
   const [servings, setServings] = useState('');
   const [minutes, setMinutes] = useState(30);
   const [nutrition, setNutrition] = useState({ calories_per_serving: '', protein_g_per_serving: '', carbs_g_per_serving: '', fat_g_per_serving: '' });
+  const [sourceNutrition, setSourceNutrition] = useState(null);
+  const [nutritionLoading, setNutritionLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -38,6 +40,7 @@ export default function OnlineRecipeDiscovery({ target, onImported, onClose }) {
       setSelected(detail);
       setServings('');
       setNutrition({ calories_per_serving: '', protein_g_per_serving: '', carbs_g_per_serving: '', fat_g_per_serving: '' });
+      setSourceNutrition(null);
       setAmounts(detail.ingredients.map(item => ({
         name: item.name,
         quantity: item.quantity ?? '',
@@ -45,6 +48,25 @@ export default function OnlineRecipeDiscovery({ target, onImported, onClose }) {
       })));
     } catch (err) { setError(err.message || 'Could not load recipe details'); }
     finally { setBusy(''); }
+  }
+
+  async function importNutritionFromSource() {
+    if (!selected?.meal_id) return;
+    setNutritionLoading(true);
+    setSourceNutrition(null);
+    setError('');
+    try {
+      const result = await api(`/recipes/online/${encodeURIComponent(selected.meal_id)}/source-nutrition`);
+      const keys = ['calories_per_serving', 'protein_g_per_serving', 'carbs_g_per_serving', 'fat_g_per_serving'];
+      setNutrition(Object.fromEntries(keys.map(key => [key,
+        result.values?.[key] == null ? '' : String(result.values[key])])));
+      setSourceNutrition(result);
+      setConfirmed(false);
+    } catch (err) {
+      setError(err.message || 'Source nutrition unavailable. Enter values manually.');
+    } finally {
+      setNutritionLoading(false);
+    }
   }
 
   function editAmount(index, field, value) {
@@ -116,6 +138,17 @@ export default function OnlineRecipeDiscovery({ target, onImported, onClose }) {
       <fieldset className="kswg-nutrition-input">
         <legend>Optional nutrition per serving</legend>
         <p className="kswg-help">Enter values only from a reliable recipe label or your own reviewed estimate. Blank means unavailable, not zero. Quantities automatically scale with family attendance.</p>
+        {selected?.source_url && /^https:\/\/(?:www\.)?bbcgoodfood\.com\/recipes\//i.test(selected.source_url) &&
+          <button type="button" className="kswg-secondary" disabled={Boolean(busy) || nutritionLoading}
+            onClick={importNutritionFromSource}>
+            {nutritionLoading ? 'Checking source…' : 'Import nutrition from source'}
+          </button>}
+        {sourceNutrition && <p className="kswg-help" role="status">
+          Source: {sourceNutrition.title || sourceNutrition.source}.
+          {sourceNutrition.recipe_yield ? ` Makes ${sourceNutrition.recipe_yield}.` : ''}
+          {sourceNutrition.serving_size ? ` Serving: ${sourceNutrition.serving_size}.` : ''}
+          {' '}Review the source recipe, portion size and values before confirming.
+        </p>}
         {[
           ['calories_per_serving', 'Calories (kcal)'],
           ['protein_g_per_serving', 'Protein (g)'],

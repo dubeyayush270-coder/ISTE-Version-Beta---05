@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from AI.config import create_user_configuration
-from AI.recommend import get_recipe_recommendations
+from AI.fast_recommend import get_fast_recipe_recommendations
 
 router = APIRouter(prefix="/api/ai", tags=["AI Recipes"])
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def recommend_recipes(request: RecommendRequest):
     )
 
     try:
-        result = get_recipe_recommendations(configuration)
+        result = get_fast_recipe_recommendations(configuration)
 
     except Exception:
         logger.exception("AI recipe recommendation failed")
@@ -53,7 +53,7 @@ def recommend_recipes(request: RecommendRequest):
 
     return {
         "status": "ok" if recipes else "no_eligible_recipes",
-        "source": "live_recipe_search",
+        "source": result.get("source", "KitchenSync library"),
         "recipes": recipes,
         "count": len(recipes),
         "search_queries": result.get("search_queries", []),

@@ -168,7 +168,7 @@ export default function AIRecipeFinder() {
         </h2>
 
         <p className="text-sm text-[#738878] mt-2">
-          Discover recipes from real cooking websites,
+          Find matching online and saved recipes,
           filtered by your preferences.
         </p>
       </div>
@@ -255,7 +255,7 @@ export default function AIRecipeFinder() {
           className="k-button k-primary w-full"
         >
           {loading
-            ? "Searching recipe websites..."
+            ? "Finding recipes..."
             : "Find AI Recipes"}
         </button>
       </form>
@@ -301,6 +301,10 @@ export default function AIRecipeFinder() {
                 <h4 className="font-bold text-[#244d35]">
                   {recipe.title || "Untitled recipe"}
                 </h4>
+                <p className="text-xs text-[#738878] mt-1">
+                  {recipe.origin || "Recipe source"}
+                  {recipe.time_unverified ? " · Time unverified" : ""}
+                </p>
 
                 {/* Original website cooking information */}
                 <p className="text-sm text-[#6b8673] mt-2">
@@ -383,7 +387,7 @@ export default function AIRecipeFinder() {
 
       {/* Source and cooking-time disclaimer */}
       <p className="text-xs text-[#8a968a] mt-4">
-        Results come from external recipe websites.
+        Recipes come from TheMealDB or your KitchenSync library.
         Check ingredients and cooking instructions before use.
         Smart Cooking timers use approximate two-minute
         checkpoints per step unless recipe-specific timings

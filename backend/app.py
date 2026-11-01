@@ -26,6 +26,7 @@ from family_management import (
 )
 from weekly_planner_api import router as weekly_planner_router
 from online_recipes_api import router as online_recipes_router
+from source_nutrition_api import router as source_nutrition_router
 from recipe_hub_api import router as recipe_hub_router
 
 
@@ -50,6 +51,7 @@ app.include_router(nutrition_router)
 app.include_router(family_router)
 app.include_router(weekly_planner_router)
 app.include_router(online_recipes_router)
+app.include_router(source_nutrition_router)
 app.include_router(recipe_hub_router)
 
 
